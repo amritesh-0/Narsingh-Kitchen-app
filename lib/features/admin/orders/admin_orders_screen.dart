@@ -3,7 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
-import '../../../data/admin_dummy_data.dart';
+import '../../../core/services/admin_service.dart';
+import '../../../models/order_model.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
   const AdminOrdersScreen({super.key});
@@ -15,37 +16,47 @@ class AdminOrdersScreen extends StatefulWidget {
 class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   OrderStatus? _filter;
 
-  List<AdminOrder> get _filtered => _filter == null
-      ? AdminDummyData.orders
-      : AdminDummyData.orders.where((o) => o.status == _filter).toList();
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          _buildHeader(context),
-          _buildFilterChips(),
-          Expanded(
-            child: _filtered.isEmpty
-                ? Center(
-                    child: Text('No orders found',
-                        style: GoogleFonts.poppins(color: AppColors.textSecondary)),
-                  )
-                : ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    itemCount: _filtered.length,
-                    itemBuilder: (_, i) => _OrderTile(order: _filtered[i]),
-                  ),
-          ),
-        ],
+      body: StreamBuilder<List<OrderModel>>(
+        stream: AdminService.instance.getAllOrders(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          final allOrders = snapshot.data ?? [];
+          final filteredOrders = _filter == null
+              ? allOrders
+              : allOrders.where((o) => o.status == _filter).toList();
+
+          return Column(
+            children: [
+              _buildHeader(context, allOrders.length),
+              _buildFilterChips(),
+              Expanded(
+                child: filteredOrders.isEmpty
+                    ? Center(
+                        child: Text('No orders found',
+                            style: GoogleFonts.poppins(color: AppColors.textSecondary)),
+                      )
+                    : ListView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        itemCount: filteredOrders.length,
+                        itemBuilder: (_, i) => _OrderTile(order: filteredOrders[i]),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, int totalCount) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -76,7 +87,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '${AdminDummyData.orders.length} total',
+              '$totalCount total',
               style: GoogleFonts.poppins(color: AppColors.whiteSurface, fontSize: 12),
             ),
           ),
@@ -125,13 +136,13 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 }
 
 class _OrderTile extends StatelessWidget {
-  final AdminOrder order;
+  final OrderModel order;
   const _OrderTile({required this.order});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, AppRoutes.orderDetail, arguments: order.id),
+      onTap: () => Navigator.pushNamed(context, AppRoutes.productDetail, arguments: order.id), // Placeholder
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
@@ -146,7 +157,7 @@ class _OrderTile extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(order.id,
+                Text('Order #${order.id.substring(0, 5).toUpperCase()}',
                     style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textPrimary)),
                 _statusChip(order.status),
@@ -157,7 +168,7 @@ class _OrderTile extends StatelessWidget {
               children: [
                 const Icon(Icons.person_outline_rounded, size: 14, color: AppColors.textSecondary),
                 const SizedBox(width: 4),
-                Text(order.customerName,
+                Text(order.userName,
                     style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary)),
               ],
             ),
@@ -168,7 +179,7 @@ class _OrderTile extends StatelessWidget {
                 Text(
                     '${order.items.length} item${order.items.length > 1 ? 's' : ''}',
                     style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary)),
-                Text('₹${order.total.toStringAsFixed(2)}',
+                Text('₹${order.totalAmount.toStringAsFixed(2)}',
                     style: GoogleFonts.poppins(
                         fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryRed)),
               ],

@@ -283,59 +283,66 @@ class _ProfileTab extends StatelessWidget {
               const SizedBox(height: 32),
               
               // Profile Card
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppColors.whiteSurface,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: AppColors.primaryRed,
-                      child: Text(
-                        (user?.displayName ?? 'User').substring(0, 1).toUpperCase(),
-                        style: GoogleFonts.outfit(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 32,
-                          color: Colors.white,
+              FutureBuilder<Map<String, dynamic>?>(
+                future: user != null ? AuthService.instance.getUserDetails(user.uid) : null,
+                builder: (context, snapshot) {
+                  final userData = snapshot.data;
+                  final name = userData?['name'] ?? 'User';
+                  final email = user?.email ?? 'No email';
+                  
+                  return Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AppColors.whiteSurface,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8),
                         ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user?.displayName ?? AppStrings.userName,
-                            style: GoogleFonts.outfit(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 20,
-                              color: AppColors.textPrimary,
-                            ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryRed.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
                           ),
-                          Text(
-                            user?.email ?? 'Not logged in',
-                            style: GoogleFonts.outfit(
-                              fontWeight: FontWeight.w400,
-                              fontSize: 14,
-                              color: AppColors.textSecondary,
-                            ),
+                          alignment: Alignment.center,
+                          child: const Text('👤', style: TextStyle(fontSize: 40)),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 20,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                email,
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 14,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
               
               const SizedBox(height: 32),

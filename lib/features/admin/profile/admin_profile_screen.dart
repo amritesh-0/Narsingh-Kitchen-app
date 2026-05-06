@@ -60,6 +60,7 @@ class AdminProfileScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final user = AuthService.instance.currentUser;
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -75,35 +76,41 @@ class AdminProfileScreen extends StatelessWidget {
         right: 20,
         bottom: 32,
       ),
-      child: Column(
-        children: [
-          Container(
-            width: 86,
-            height: 86,
-            decoration: BoxDecoration(
-              color: AppColors.whiteSurface,
-              shape: BoxShape.circle,
-              boxShadow: AppColors.cardShadow,
-            ),
-            alignment: Alignment.center,
-            child: const Text('👨‍💼', style: TextStyle(fontSize: 44)),
-          ),
-          const SizedBox(height: 12),
-          Text('Admin',
-              style: GoogleFonts.poppins(
-                  fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.whiteSurface)),
-          const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-            decoration: BoxDecoration(
-              color: AppColors.whiteSurface.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text('Super Admin',
-                style: GoogleFonts.poppins(
-                    fontSize: 12, color: AppColors.whiteSurface, fontWeight: FontWeight.w500)),
-          ),
-        ],
+      child: FutureBuilder<Map<String, dynamic>?>(
+        future: user != null ? AuthService.instance.getUserDetails(user.uid) : null,
+        builder: (context, snapshot) {
+          final name = snapshot.data?['name'] ?? 'Admin';
+          return Column(
+            children: [
+              Container(
+                width: 86,
+                height: 86,
+                decoration: BoxDecoration(
+                  color: AppColors.whiteSurface,
+                  shape: BoxShape.circle,
+                  boxShadow: AppColors.cardShadow,
+                ),
+                alignment: Alignment.center,
+                child: const Text('👨‍💼', style: TextStyle(fontSize: 44)),
+              ),
+              const SizedBox(height: 12),
+              Text(name,
+                  style: GoogleFonts.poppins(
+                      fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.whiteSurface)),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.whiteSurface.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text('Super Admin',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, color: AppColors.whiteSurface, fontWeight: FontWeight.w500)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

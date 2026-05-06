@@ -3,7 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
-import '../../../data/admin_dummy_data.dart';
+import '../../../core/services/admin_service.dart';
+import '../../../models/order_model.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -86,21 +87,33 @@ class AdminDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildStatCards() {
-    final stats = [
-      _StatData('Orders Today', AdminDummyData.totalOrdersToday.toString(), Icons.receipt_long_rounded, const Color(0xFFFFE0E0), AppColors.primaryRed),
-      _StatData('Revenue', '₹${AdminDummyData.totalRevenue.toStringAsFixed(0)}', Icons.currency_rupee_rounded, const Color(0xFFE8F5E9), AppColors.successGreen),
-      _StatData('Active Subs', AdminDummyData.activeSubscriptions.toString(), Icons.subscriptions_rounded, const Color(0xFFE3F2FD), Colors.blue),
-      _StatData('Pending', AdminDummyData.pendingOrders.toString(), Icons.hourglass_top_rounded, const Color(0xFFFFF8E1), AppColors.primaryOrange),
-    ];
+    return StreamBuilder<Map<String, dynamic>>(
+      stream: AdminService.instance.getDashboardStats(),
+      builder: (context, snapshot) {
+        final statsData = snapshot.data ?? {
+          'totalOrders': 0,
+          'revenue': 0.0,
+          'pendingOrders': 0,
+          'deliveredOrders': 0,
+        };
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.5,
-      children: stats.map((s) => _StatCard(data: s)).toList(),
+        final stats = [
+          _StatData('Orders Today', statsData['totalOrders'].toString(), Icons.receipt_long_rounded, const Color(0xFFFFE0E0), AppColors.primaryRed),
+          _StatData('Revenue', '₹${(statsData['revenue'] as double).toStringAsFixed(0)}', Icons.currency_rupee_rounded, const Color(0xFFE8F5E9), AppColors.successGreen),
+          _StatData('Delivered', statsData['deliveredOrders'].toString(), Icons.check_circle_outline_rounded, const Color(0xFFE3F2FD), Colors.blue),
+          _StatData('Pending', statsData['pendingOrders'].toString(), Icons.hourglass_top_rounded, const Color(0xFFFFF8E1), AppColors.primaryOrange),
+        ];
+
+        return GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.5,
+          children: stats.map((s) => _StatCard(data: s)).toList(),
+        );
+      },
     );
   }
 
@@ -150,7 +163,6 @@ class AdminDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildRecentOrders(BuildContext context) {
-    final recent = AdminDummyData.orders.take(5).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -168,7 +180,26 @@ class AdminDashboardScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        ...recent.map((o) => _OrderCard(order: o)),
+        StreamBuilder<List<OrderModel>>(
+          stream: AdminService.instance.getAllOrders(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final orders = snapshot.data!.take(5).toList();
+            if (orders.isEmpty) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Text('No recent orders', style: GoogleFonts.poppins(color: AppColors.textSecondary)),
+                ),
+              );
+            }
+            return Column(
+              children: orders.map((o) => _OrderCard(order: o)).toList(),
+            );
+          },
+        ),
       ],
     );
   }
@@ -234,13 +265,13 @@ class _QuickAction {
 }
 
 class _OrderCard extends StatelessWidget {
-  final AdminOrder order;
+  final OrderModel order;
   const _OrderCard({required this.order});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, AppRoutes.orderDetail, arguments: order.id),
+      onTap: () => Navigator.pushNamed(context, AppRoutes.productDetail, arguments: order.id),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
@@ -256,17 +287,17 @@ class _OrderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    order.id,
+                    'Order #${order.id.substring(0, 5).toUpperCase()}',
                     style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    order.customerName,
+                    order.userName,
                     style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${order.items.length} item${order.items.length > 1 ? 's' : ''} · ₹${order.total.toStringAsFixed(0)}',
+                    '${order.items.length} item${order.items.length > 1 ? 's' : ''} · ₹${order.totalAmount.toStringAsFixed(0)}',
                     style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ],

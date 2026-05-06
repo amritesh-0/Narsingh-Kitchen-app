@@ -46,12 +46,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
         _emailCtrl.text.trim(),
         _passwordCtrl.text.trim(),
         _nameCtrl.text.trim(),
+        role: _isCustomer ? 'customer' : 'admin',
       );
       
       if (!mounted) return;
       
-      // After sign up, redirect to home or onboarding
-      Navigator.pushReplacementNamed(context, AppRoutes.bottomNav);
+      // After sign up, redirect based on role
+      if (_isCustomer) {
+        Navigator.pushReplacementNamed(context, AppRoutes.bottomNav);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.adminBottomNav);
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

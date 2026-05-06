@@ -34,7 +34,7 @@ class AuthService {
   }
 
   // Sign Up
-  Future<UserCredential> signUp(String email, String password, String name) async {
+  Future<UserCredential> signUp(String email, String password, String name, {String role = 'customer'}) async {
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -46,11 +46,11 @@ class AuthService {
         'uid': credential.user?.uid,
         'email': email,
         'name': name,
-        'role': 'customer', // Default role
+        'role': role,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      await saveUserRole('customer');
+      await saveUserRole(role);
       return credential;
     } catch (e) {
       rethrow;
@@ -82,6 +82,11 @@ class AuthService {
     await _auth.signOut();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyRole);
+  }
+
+  Future<Map<String, dynamic>?> getUserDetails(String uid) async {
+    final doc = await _firestore.collection('users').doc(uid).get();
+    return doc.data();
   }
 
   Future<void> resetPassword(String email) async {

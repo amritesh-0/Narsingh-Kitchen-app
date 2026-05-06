@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
+import '../../core/services/product_service.dart';
+import '../../models/product_model.dart';
+import '../../models/category_model.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/constants/app_strings.dart';
@@ -217,28 +219,29 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _CategoryItem(
-                        title: 'Fast Food',
-                        image: '🍔',
-                        color: AppColors.primaryRed,
-                        onTap: () => Navigator.pushNamed(context, AppRoutes.fastFood),
-                      ),
-                      _CategoryItem(
-                        title: 'Tiffin',
-                        image: '🍱',
-                        color: AppColors.primaryOrange,
-                        onTap: () => Navigator.pushNamed(context, AppRoutes.tiffin),
-                      ),
-                      _CategoryItem(
-                        title: 'Spices',
-                        image: '🌶️',
-                        color: AppColors.primaryBrown,
-                        onTap: () => Navigator.pushNamed(context, AppRoutes.spices),
-                      ),
-                    ],
+                  StreamBuilder<List<CategoryModel>>(
+                    stream: ProductService.instance.getCategories(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final categories = snapshot.data!;
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: categories.map((cat) {
+                          return _CategoryItem(
+                            title: cat.title,
+                            image: cat.image,
+                            color: cat.color,
+                            onTap: () {
+                              if (cat.title == 'Fast Food') Navigator.pushNamed(context, AppRoutes.fastFood);
+                              if (cat.title == 'Tiffin') Navigator.pushNamed(context, AppRoutes.tiffin);
+                              if (cat.title == 'Spices') Navigator.pushNamed(context, AppRoutes.spices);
+                            },
+                          );
+                        }).toList(),
+                      );
+                    },
                   ),
                   
                   const SizedBox(height: 32),
@@ -268,30 +271,43 @@ class HomeScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      children: [
-                        PopularFoodCard(
-                          title: 'Paneer Burger',
-                          category: 'Fast Food',
-                          image: 'assets/images/burger_popular.png',
-                          price: '₹250',
-                          accent: AppColors.primaryRed,
-                          onTap: () => Navigator.pushNamed(context, AppRoutes.productDetail),
+                  StreamBuilder<List<ProductModel>>(
+                    stream: ProductService.instance.getPopularProducts(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final products = snapshot.data!;
+                      if (products.isEmpty) {
+                        return Center(
+                          child: Text(
+                            'No popular items found',
+                            style: GoogleFonts.outfit(color: AppColors.textSecondary),
+                          ),
+                        );
+                      }
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: products.map((prod) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 16),
+                              child: PopularFoodCard(
+                                title: prod.name,
+                                category: prod.kind == ProductKind.fastFood ? 'Fast Food' : 'Tiffin',
+                                image: prod.kind == ProductKind.fastFood 
+                                    ? 'assets/images/burger_popular.png' 
+                                    : 'assets/images/tiffin_popular.png',
+                                price: '₹${prod.price.toInt()}',
+                                accent: prod.kind == ProductKind.fastFood ? AppColors.primaryRed : AppColors.primaryOrange,
+                                onTap: () => Navigator.pushNamed(context, AppRoutes.productDetail),
+                              ),
+                            );
+                          }).toList(),
                         ),
-                        const SizedBox(width: 16),
-                        PopularFoodCard(
-                          title: 'Special Dal Tiffin',
-                          category: 'Tiffin',
-                          image: 'assets/images/tiffin_popular.png',
-                          price: '₹120',
-                          accent: AppColors.primaryOrange,
-                          onTap: () => Navigator.pushNamed(context, AppRoutes.productDetail),
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                   
                   const SizedBox(height: 32),
