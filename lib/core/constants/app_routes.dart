@@ -24,6 +24,9 @@ abstract final class AppRoutes {
 
   static const String checkout = '/checkout';
   static const String orderSuccess = '/order-success';
+  static const String myOrders = '/my-orders';
+  static const String userProfile = '/user-profile';
+  static const String savedItems = '/saved-items';
 
   // ── Admin Routes ──────────────────────────────────────────────────────────
   static const String adminBottomNav = '/admin-bottom-nav';
@@ -35,6 +38,9 @@ abstract final class AppRoutes {
   static const String manageTiffin = '/manage-tiffin';
   static const String manageSpices = '/manage-spices';
   static const String addEditProduct = '/add-edit-product';
+  static const String addFastFood = '/add-fast-food';
+  static const String addTiffin = '/add-tiffin';
+  static const String addSpice = '/add-spice';
   static const String manageCustomers = '/manage-customers';
   static const String manageSubscriptions = '/manage-subscriptions';
   static const String managePromos = '/manage-promos';

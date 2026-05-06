@@ -1,53 +1,85 @@
+import 'dart:async';
 import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/cart_item_model.dart';
 import '../models/product_model.dart';
-import 'dummy_data.dart';
+import '../core/services/auth_service.dart';
 
-/// Simple app-wide cart with promo + totals (demo / offline-first).
+/// Simple app-wide cart with Firestore persistence.
 class CartService extends ChangeNotifier {
-  CartService._();
+  CartService._() {
+    _initFirestoreListener();
+  }
 
   static final CartService instance = CartService._();
 
-  final List<CartItemModel> _items = [];
+  List<CartItemModel> _items = [];
   final Random _rand = Random();
+  StreamSubscription? _cartSubscription;
 
   String? _appliedPromo;
   static const double _deliveryFee = 30;
   static const double _gstRate = 0.05;
 
-  // Valid promo codes with their discount percentages
   static const Map<String, double> validPromoCodes = {
-    'FEAST10': 0.10, // 10% discount
-    'SAVE20': 0.20, // 20% discount
-    'WELCOME5': 0.05, // 5% discount
-    'FOODLOVER': 0.15, // 15% discount
+    'FEAST10': 0.10,
+    'SAVE20': 0.20,
+    'WELCOME5': 0.05,
+    'FOODLOVER': 0.15,
   };
 
-  List<CartItemModel> get items => List.unmodifiable(_items);
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
+  String? get _uid => AuthService.instance.currentUser?.uid;
 
-  bool get isEmpty => _items.isEmpty;
-
-  void seedDemoIfEmpty() {
-    if (_items.isNotEmpty) return;
-    _addInternal(
-      DummyData.fastFoodItems.first,
-      quantity: 1,
-      variantLabel: null,
-    );
-    _addInternal(DummyData.todayTiffinMeal, quantity: 2, variantLabel: null);
-    _addInternal(DummyData.spiceItems.first, quantity: 1, variantLabel: '500g');
-    notifyListeners();
+  void _initFirestoreListener() {
+    AuthService.instance.authStateChanges.listen((user) {
+      _cartSubscription?.cancel();
+      if (user != null) {
+        _cartSubscription = _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('cart')
+            .snapshots()
+            .listen((snapshot) async {
+          _items = [];
+          for (var doc in snapshot.docs) {
+            final data = doc.data();
+            // We need to fetch product detail or use a placeholder
+            // For now, using a simplified product model constructed from stored data
+            final product = ProductModel(
+              id: data['productId'] ?? '',
+              name: data['productName'] ?? '',
+              emoji: data['productEmoji'] ?? '🍔',
+              kind: ProductKind.fastFood, // Fallback
+              price: (data['unitPrice'] ?? 0.0).toDouble(),
+              rating: 5.0,
+              tag: '',
+              subtitle: '',
+            );
+            _items.add(CartItemModel.fromMap(data, product));
+          }
+          notifyListeners();
+        });
+      } else {
+        _items = [];
+        notifyListeners();
+      }
+    });
   }
 
-  String generateOrderId() =>
-      'FE-${DateTime.now().year}${100000 + _rand.nextInt(899999)}';
+  List<CartItemModel> get items => List.unmodifiable(_items);
+  bool get isEmpty => _items.isEmpty;
 
-  void clear() {
-    _items.clear();
+  void clear() async {
+    if (_uid == null) return;
+    final cartRef = _firestore.collection('users').doc(_uid).collection('cart');
+    final snapshot = await cartRef.get();
+    for (var doc in snapshot.docs) {
+      await doc.reference.delete();
+    }
     _appliedPromo = null;
     notifyListeners();
   }
@@ -63,77 +95,80 @@ class CartService extends ChangeNotifier {
   }
 
   bool get promoActive => _appliedPromo != null;
-
   String? get appliedPromo => _appliedPromo;
 
   double get subtotal => _items.fold<double>(0, (sum, e) => sum + e.lineTotal);
-
   double get promoDiscount {
     if (!promoActive || _appliedPromo == null) return 0;
-    final discountRate = validPromoCodes[_appliedPromo] ?? 0;
-    return subtotal * discountRate;
+    return subtotal * (validPromoCodes[_appliedPromo] ?? 0);
   }
-
-  double get taxableBase =>
-      (subtotal - promoDiscount).clamp(0, double.infinity);
-
+  double get taxableBase => (subtotal - promoDiscount).clamp(0, double.infinity);
   double get gstAmount => taxableBase * _gstRate;
-
   double get total => taxableBase + _deliveryFee + gstAmount;
-
   static double get deliveryFee => _deliveryFee;
 
-  void addProduct(
-    ProductModel product, {
-    int quantity = 1,
-    String? variantLabel,
-  }) {
-    _addInternal(product, quantity: quantity, variantLabel: variantLabel);
-    notifyListeners();
+  Future<void> addProduct(ProductModel product, {int quantity = 1, String? variantLabel}) async {
+    if (_uid == null) return;
+    final cartRef = _firestore.collection('users').doc(_uid).collection('cart');
+    final docId = '${product.id}_${variantLabel ?? 'base'}';
+    
+    final doc = await cartRef.doc(docId).get();
+    if (doc.exists) {
+      await cartRef.doc(docId).update({'quantity': FieldValue.increment(quantity)});
+    } else {
+      await cartRef.doc(docId).set({
+        'lineId': docId,
+        'productId': product.id,
+        'productName': product.name,
+        'productEmoji': product.emoji,
+        'unitPrice': product.priceForVariant(variantLabel),
+        'quantity': quantity,
+        'variantLabel': variantLabel,
+      });
+    }
   }
 
-  void _addInternal(
-    ProductModel product, {
-    required int quantity,
-    required String? variantLabel,
-  }) {
-    final unit = product.priceForVariant(variantLabel);
-    CartItemModel? existing;
-    for (final e in _items) {
-      if (e.product.id == product.id && e.variantLabel == variantLabel) {
-        existing = e;
-        break;
-      }
-    }
-    if (existing != null) {
-      existing.quantity += quantity;
-      return;
-    }
-    _items.add(
-      CartItemModel(
-        lineId:
-            '${product.id}-${variantLabel ?? "base"}-${DateTime.now().microsecondsSinceEpoch}',
-        product: product,
-        unitPrice: unit,
-        quantity: quantity,
-        variantLabel: variantLabel,
-      ),
-    );
-  }
-
-  void updateQuantity(String lineId, int next) {
+  Future<void> updateQuantity(String lineId, int next) async {
+    if (_uid == null) return;
     final q = next.clamp(1, 99);
-    final index = _items.indexWhere((e) => e.lineId == lineId);
-    if (index < 0) return;
-    _items[index].quantity = q;
-    notifyListeners();
+    await _firestore
+        .collection('users')
+        .doc(_uid)
+        .collection('cart')
+        .doc(lineId)
+        .update({'quantity': q});
   }
 
-  void removeLine(String lineId) {
-    _items.removeWhere((e) => e.lineId == lineId);
-    notifyListeners();
+  Future<void> removeLine(String lineId) async {
+    if (_uid == null) return;
+    await _firestore
+        .collection('users')
+        .doc(_uid)
+        .collection('cart')
+        .doc(lineId)
+        .delete();
   }
 
-  String formatInr(double v) =>
-      '₹${v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 2)}';
+  Future<String> placeOrder(String address) async {
+    if (_uid == null || _items.isEmpty) return '';
+
+    final userDoc = await AuthService.instance.getUserDetails(_uid!);
+    final userName = userDoc?['name'] ?? 'Customer';
+
+    final orderData = {
+      'userId': _uid,
+      'userName': userName,
+      'items': _items.map((i) => i.toMap()).toList(),
+      'totalAmount': total,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+      'deliveryAddress': address,
+    };
+
+    final docRef = await _firestore.collection('orders').add(orderData);
+    clear();
+    return docRef.id;
+  }
+
+  String formatInr(double v) => '₹${v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 2)}';
 }

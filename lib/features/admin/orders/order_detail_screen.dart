@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../data/admin_dummy_data.dart';
+import '../../../core/services/admin_service.dart';
+import '../../../models/order_model.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final String orderId;
@@ -13,104 +14,153 @@ class OrderDetailScreen extends StatefulWidget {
 }
 
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
-  late AdminOrder _order;
-
-  @override
-  void initState() {
-    super.initState();
-    _order = AdminDummyData.orders.firstWhere(
-      (o) => o.id == widget.orderId,
-      orElse: () => AdminDummyData.orders.first,
-    );
+  Future<void> _updateStatus(OrderStatus s) async {
+    await AdminService.instance.updateOrderStatus(widget.orderId, s);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Status updated to ${_statusLabel(s)}', style: GoogleFonts.poppins()),
+          backgroundColor: AppColors.successGreen,
+        ),
+      );
+    }
   }
-
-  void _updateStatus(OrderStatus s) => setState(() => _order.status = s);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 130,
-            pinned: true,
-            backgroundColor: AppColors.primaryRed,
-            foregroundColor: AppColors.whiteSurface,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFFB71C1C), AppColors.primaryRed],
+    return StreamBuilder<List<OrderModel>>(
+      stream: AdminService.instance.getAllOrders(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        final orders = snapshot.data ?? [];
+        final order = orders.firstWhere(
+          (o) => o.id == widget.orderId,
+          orElse: () => orders.length > 0 ? orders.first : OrderModel(id: 'err', userId: '', userName: '', items: [], totalAmount: 0, status: OrderStatus.pending, createdAt: DateTime.now(), deliveryAddress: ''),
+        );
+
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 130,
+                pinned: true,
+                backgroundColor: AppColors.primaryRed,
+                foregroundColor: AppColors.whiteSurface,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFFB71C1C), AppColors.primaryRed],
+                      ),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 80, 20, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Order #${order.id.length > 5 ? order.id.substring(0, 5).toUpperCase() : order.id}',
+                            style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w700, fontSize: 20, color: AppColors.whiteSurface)),
+                        _StatusBadge(status: order.status),
+                      ],
+                    ),
                   ),
                 ),
-                padding: const EdgeInsets.fromLTRB(20, 80, 20, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_order.id,
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w700, fontSize: 20, color: AppColors.whiteSurface)),
-                    _StatusBadge(status: _order.status),
-                  ],
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _sectionCard('Customer Info', [
+                      _infoRow(Icons.person_rounded, order.userName),
+                      _infoRow(Icons.location_on_rounded, order.deliveryAddress),
+                    ]),
+                    const SizedBox(height: 12),
+                    _sectionCard('Order Items', [
+                      ...order.items.map(
+                        (item) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            children: [
+                              Text(item['emoji'] ?? '🍔', style: const TextStyle(fontSize: 24)),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(item['name'] ?? 'Item',
+                                    style: GoogleFonts.poppins(
+                                        fontSize: 13, color: AppColors.textPrimary)),
+                              ),
+                              Text('${item['quantity']}×',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 12, color: AppColors.textSecondary)),
+                              const SizedBox(width: 6),
+                              Text('₹${((item['price'] ?? 0) * (item['quantity'] ?? 1)).toStringAsFixed(0)}',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 13, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 12),
+                    _sectionCard('Price Breakdown', [
+                      _priceRow('Subtotal', order.totalAmount / 1.05),
+                      _priceRow('Tax (GST 5%)', order.totalAmount - (order.totalAmount / 1.05)),
+                      const Divider(),
+                      _priceRow('Total Amount', order.totalAmount, bold: true),
+                    ]),
+                    const SizedBox(height: 12),
+                    _buildStatusDropdown(order),
+                    const SizedBox(height: 12),
+                    _buildActionButtons(context, order),
+                    const SizedBox(height: 24),
+                  ]),
                 ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context, OrderModel order) {
+    return Row(
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: () => _updateStatus(OrderStatus.delivered),
+              icon: const Icon(Icons.check_circle_rounded, size: 18),
+              label: Text('Deliver', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.successGreen,
+                foregroundColor: AppColors.whiteSurface,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                _sectionCard('Customer Info', [
-                  _infoRow(Icons.person_rounded, _order.customerName),
-                  _infoRow(Icons.phone_rounded, _order.customerPhone),
-                  _infoRow(Icons.location_on_rounded, _order.customerAddress),
-                ]),
-                const SizedBox(height: 12),
-                _sectionCard('Order Items', [
-                  ..._order.items.map(
-                    (item) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        children: [
-                          Text(item.emoji, style: const TextStyle(fontSize: 24)),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(item.name,
-                                style: GoogleFonts.poppins(
-                                    fontSize: 13, color: AppColors.textPrimary)),
-                          ),
-                          Text('${item.qty}×',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 12, color: AppColors.textSecondary)),
-                          const SizedBox(width: 6),
-                          Text('₹${item.lineTotal.toStringAsFixed(0)}',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 13, fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 12),
-                _sectionCard('Price Breakdown', [
-                  _priceRow('Subtotal', _order.subtotal),
-                  _priceRow('Delivery Fee', _order.deliveryFee),
-                  _priceRow('GST (5%)', _order.gst),
-                  const Divider(),
-                  _priceRow('Total', _order.total, bold: true),
-                ]),
-                const SizedBox(height: 12),
-                _buildStatusDropdown(),
-                const SizedBox(height: 12),
-                _buildActionButtons(context),
-                const SizedBox(height: 24),
-              ]),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: SizedBox(
+            height: 48,
+            child: OutlinedButton.icon(
+              onPressed: () => _updateStatus(OrderStatus.cancelled),
+              icon: const Icon(Icons.cancel_rounded, size: 18),
+              label: Text('Cancel', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primaryRed,
+                side: const BorderSide(color: AppColors.primaryRed),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -172,7 +222,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
-  Widget _buildStatusDropdown() {
+  String _statusLabel(OrderStatus s) {
+    switch (s) {
+      case OrderStatus.pending: return 'Pending';
+      case OrderStatus.preparing: return 'Preparing';
+      case OrderStatus.outForDelivery: return 'Out for Delivery';
+      case OrderStatus.delivered: return 'Delivered';
+      case OrderStatus.cancelled: return 'Cancelled';
+    }
+  }
+
+  Widget _buildStatusDropdown(OrderModel order) {
     return Container(
       decoration: BoxDecoration(
           color: AppColors.whiteSurface,
@@ -182,7 +242,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<OrderStatus>(
           isExpanded: true,
-          value: _order.status,
+          value: order.status,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primaryRed),
           style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textPrimary),
           items: OrderStatus.values
@@ -196,70 +256,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           },
         ),
       ),
-    );
-  }
-
-  String _statusLabel(OrderStatus s) {
-    switch (s) {
-      case OrderStatus.pending: return 'Pending';
-      case OrderStatus.preparing: return 'Preparing';
-      case OrderStatus.outForDelivery: return 'Out for Delivery';
-      case OrderStatus.delivered: return 'Delivered';
-      case OrderStatus.cancelled: return 'Cancelled';
-    }
-  }
-
-  Widget _buildActionButtons(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: SizedBox(
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                _updateStatus(OrderStatus.delivered);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Order marked as Delivered', style: GoogleFonts.poppins()),
-                    backgroundColor: AppColors.successGreen,
-                  ),
-                );
-              },
-              icon: const Icon(Icons.check_circle_rounded, size: 18),
-              label: Text('Deliver', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.successGreen,
-                foregroundColor: AppColors.whiteSurface,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: SizedBox(
-            height: 48,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                _updateStatus(OrderStatus.cancelled);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Order Cancelled', style: GoogleFonts.poppins()),
-                    backgroundColor: AppColors.primaryRed,
-                  ),
-                );
-              },
-              icon: const Icon(Icons.cancel_rounded, size: 18),
-              label: Text('Cancel', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primaryRed,
-                side: const BorderSide(color: AppColors.primaryRed),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

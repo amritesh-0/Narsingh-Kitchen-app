@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/services/admin_service.dart';
 import '../../../models/order_model.dart';
+import '../../../models/product_model.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -119,9 +120,9 @@ class AdminDashboardScreen extends StatelessWidget {
 
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
-      _QuickAction('Add Fast Food', Icons.fastfood_rounded, AppRoutes.addEditProduct, 'Fast Food'),
-      _QuickAction('Add Tiffin', Icons.lunch_dining_rounded, AppRoutes.addEditProduct, 'Tiffin'),
-      _QuickAction('Add Spice', Icons.grass_rounded, AppRoutes.addEditProduct, 'Spices'),
+      _QuickAction('Add Fast Food', Icons.fastfood_rounded, AppRoutes.addFastFood, null),
+      _QuickAction('Add Tiffin', Icons.lunch_dining_rounded, AppRoutes.addTiffin, null),
+      _QuickAction('Add Spice', Icons.grass_rounded, AppRoutes.addSpice, null),
       _QuickAction('Add Promo', Icons.local_offer_rounded, AppRoutes.managePromos, null),
     ];
 
@@ -151,7 +152,6 @@ class AdminDashboardScreen extends StatelessWidget {
                         onPressed: () => Navigator.pushNamed(
                           context,
                           a.route,
-                          arguments: a.category != null ? {'category': a.category} : null,
                         ),
                       ),
                     ))
@@ -174,7 +174,7 @@ class AdminDashboardScreen extends StatelessWidget {
               style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.textPrimary),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () => Navigator.pushNamed(context, AppRoutes.adminOrders),
               child: Text('View All', style: GoogleFonts.poppins(color: AppColors.primaryRed, fontSize: 13)),
             ),
           ],
@@ -260,8 +260,8 @@ class _QuickAction {
   final String label;
   final IconData icon;
   final String route;
-  final String? category;
-  const _QuickAction(this.label, this.icon, this.route, this.category);
+  final ProductKind? kind;
+  const _QuickAction(this.label, this.icon, this.route, this.kind);
 }
 
 class _OrderCard extends StatelessWidget {
@@ -271,7 +271,7 @@ class _OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, AppRoutes.productDetail, arguments: order.id),
+      onTap: () => Navigator.pushNamed(context, AppRoutes.orderDetail, arguments: order.id),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
@@ -287,7 +287,7 @@ class _OrderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Order #${order.id.substring(0, 5).toUpperCase()}',
+                    'Order #${order.id.length > 5 ? order.id.substring(0, 5).toUpperCase() : order.id}',
                     style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 2),

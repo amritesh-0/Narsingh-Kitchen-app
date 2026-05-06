@@ -168,14 +168,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 child: ElevatedButton(
                   onPressed: cart.isEmpty
                       ? null
-                      : () {
-                          final id = cart.generateOrderId();
-                          cart.clear();
-                          Navigator.pushReplacementNamed(
-                            context,
-                            AppRoutes.orderSuccess,
-                            arguments: id,
+                      : () async {
+                          // Show loading
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (_) => const Center(child: CircularProgressIndicator()),
                           );
+                          
+                          try {
+                            final orderId = await cart.placeOrder(_addressCtrl.text);
+                            if (context.mounted) {
+                              Navigator.pop(context); // close loader
+                              Navigator.pushReplacementNamed(
+                                context,
+                                AppRoutes.orderSuccess,
+                                arguments: orderId,
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              Navigator.pop(context); // close loader
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed to place order: $e')),
+                              );
+                            }
+                          }
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryRed,

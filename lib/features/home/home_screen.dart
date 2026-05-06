@@ -222,10 +222,21 @@ class HomeScreen extends StatelessWidget {
                   StreamBuilder<List<CategoryModel>>(
                     stream: ProductService.instance.getCategories(),
                     builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
+                      var categories = snapshot.data ?? [];
+                      
+                      // Fallback to standard categories if Firestore is empty
+                      if (categories.isEmpty && snapshot.connectionState == ConnectionState.active) {
+                        categories = [
+                          CategoryModel(id: '1', title: 'Fast Food', image: '🍔', color: const Color(0xFFE53935)),
+                          CategoryModel(id: '2', title: 'Tiffin', image: '🍱', color: const Color(0xFFFF9800)),
+                          CategoryModel(id: '3', title: 'Spices', image: '🌶️', color: const Color(0xFF795548)),
+                        ];
                       }
-                      final categories = snapshot.data!;
+
+                      if (categories.isEmpty && snapshot.connectionState == ConnectionState.waiting) {
+                         return const Center(child: CircularProgressIndicator());
+                      }
+
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: categories.map((cat) {
@@ -289,23 +300,26 @@ class HomeScreen extends StatelessWidget {
                       return SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
-                        child: Row(
-                          children: products.map((prod) {
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 16),
-                              child: PopularFoodCard(
-                                title: prod.name,
-                                category: prod.kind == ProductKind.fastFood ? 'Fast Food' : 'Tiffin',
-                                image: prod.kind == ProductKind.fastFood 
-                                    ? 'assets/images/burger_popular.png' 
-                                    : 'assets/images/tiffin_popular.png',
-                                price: '₹${prod.price.toInt()}',
-                                accent: prod.kind == ProductKind.fastFood ? AppColors.primaryRed : AppColors.primaryOrange,
-                                onTap: () => Navigator.pushNamed(context, AppRoutes.productDetail),
-                              ),
-                            );
-                          }).toList(),
-                        ),
+                          child: Row(
+                            children: products.map((prod) {
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 16),
+                                child: PopularFoodCard(
+                                  title: prod.name,
+                                  category: prod.kind == ProductKind.fastFood ? 'Fast Food' : 'Tiffin',
+                                  emoji: prod.emoji,
+                                  price: '₹${prod.price.toInt()}',
+                                  rating: prod.ratingLabel,
+                                  accent: prod.kind == ProductKind.fastFood ? AppColors.primaryRed : AppColors.primaryOrange,
+                                  onTap: () => Navigator.pushNamed(
+                                    context, 
+                                    prod.kind == ProductKind.fastFood ? AppRoutes.productDetail : AppRoutes.tiffinDetail,
+                                    arguments: prod,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
                       );
                     },
                   ),
@@ -424,16 +438,18 @@ class PopularFoodCard extends StatelessWidget {
     super.key,
     required this.title,
     required this.category,
-    required this.image,
+    required this.emoji,
     required this.price,
+    required this.rating,
     required this.accent,
     required this.onTap,
   });
 
   final String title;
   final String category;
-  final String image;
+  final String emoji;
   final String price;
+  final String rating;
   final Color accent;
   final VoidCallback onTap;
 
@@ -459,11 +475,12 @@ class PopularFoodCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              child: Image.asset(
-                image,
+              child: Container(
                 height: 140,
                 width: 200,
-                fit: BoxFit.cover,
+                color: accent.withValues(alpha: 0.12),
+                alignment: Alignment.center,
+                child: Text(emoji, style: const TextStyle(fontSize: 72)),
               ),
             ),
             Padding(
@@ -480,13 +497,19 @@ class PopularFoodCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    category,
-                    style: GoogleFonts.outfit(
-                      fontWeight: FontWeight.w400,
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
+                  Row(
+                    children: [
+                      const Icon(Icons.star_rounded, size: 14, color: AppColors.starYellow),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$rating · $category',
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w400,
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Row(

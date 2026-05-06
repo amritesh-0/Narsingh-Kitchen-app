@@ -13,6 +13,9 @@ import 'features/admin/notifications/manage_notifications_screen.dart';
 import 'features/admin/orders/admin_orders_screen.dart';
 import 'features/admin/orders/order_detail_screen.dart';
 import 'features/admin/products/add_edit_product_screen.dart';
+import 'features/admin/products/add_fast_food_screen.dart';
+import 'features/admin/products/add_tiffin_screen.dart';
+import 'features/admin/products/add_spice_screen.dart';
 import 'features/admin/products/manage_products_screen.dart';
 import 'features/admin/profile/admin_profile_screen.dart';
 import 'features/admin/promos/manage_promos_screen.dart';
@@ -26,6 +29,9 @@ import 'features/cart/order_success_screen.dart';
 import 'features/fast_food/fast_food_screen.dart';
 import 'features/home/bottom_nav_screen.dart';
 import 'features/home/home_screen.dart';
+import 'features/orders/orders_screen.dart';
+import 'features/profile/profile_screen.dart';
+import 'features/saved/saved_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/product/product_detail_screen.dart';
 import 'features/spices/spice_category_screen.dart';
@@ -36,6 +42,8 @@ import 'features/tiffin/delivery_slot_screen.dart';
 import 'features/tiffin/subscription_plan_screen.dart';
 import 'features/tiffin/tiffin_detail_screen.dart';
 import 'features/tiffin/tiffin_screen.dart';
+import 'models/product_model.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,7 +55,7 @@ void main() async {
     debugPrint('Make sure you have added google-services.json / GoogleService-Info.plist');
   }
   
-  CartService.instance.seedDemoIfEmpty();
+  
   runApp(const NarsinghKitchenApp());
 }
 
@@ -74,7 +82,7 @@ class NarsinghKitchenApp extends StatelessWidget {
         AppRoutes.tiffin: (_) => const TiffinScreen(),
         AppRoutes.spices: (_) => const SpicesScreen(),
         AppRoutes.cart: (_) => const CartScreen(),
-        AppRoutes.productDetail: (_) => const ProductDetailScreen(),
+        AppRoutes.productDetail: _buildProductDetail,
         AppRoutes.tiffinDetail: _buildTiffinDetail,
         AppRoutes.subscriptionPlan: (_) => const SubscriptionPlanScreen(),
         AppRoutes.deliverySlot: (_) => const DeliverySlotScreen(),
@@ -82,6 +90,9 @@ class NarsinghKitchenApp extends StatelessWidget {
         AppRoutes.spiceCategory: _buildSpiceCategory,
         AppRoutes.checkout: (_) => const CheckoutScreen(),
         AppRoutes.orderSuccess: _buildOrderSuccess,
+        AppRoutes.myOrders: (_) => const OrdersScreen(),
+        AppRoutes.userProfile: (_) => const ProfileScreen(),
+        AppRoutes.savedItems: (_) => const SavedScreen(),
 
         // ── Admin Routes ─────────────────────────────────────────────────────
         AppRoutes.adminBottomNav: (_) => const AdminBottomNav(),
@@ -90,6 +101,9 @@ class NarsinghKitchenApp extends StatelessWidget {
         AppRoutes.orderDetail: _buildOrderDetail,
         AppRoutes.manageProducts: (_) => const ManageProductsScreen(),
         AppRoutes.addEditProduct: _buildAddEditProduct,
+        AppRoutes.addFastFood: _buildAddFastFood,
+        AppRoutes.addTiffin: _buildAddTiffin,
+        AppRoutes.addSpice: _buildAddSpice,
         AppRoutes.manageCustomers: (_) => const ManageCustomersScreen(),
         AppRoutes.manageSubscriptions: (_) => const ManageSubscriptionsScreen(),
         AppRoutes.managePromos: (_) => const ManagePromosScreen(),
@@ -101,8 +115,22 @@ class NarsinghKitchenApp extends StatelessWidget {
   }
 
   // ── Existing user route builders (unchanged) ──────────────────────────────
+  static Widget _buildProductDetail(BuildContext context) {
+    final arg = ModalRoute.of(context)?.settings.arguments;
+    if (arg is ProductModel) {
+      return ProductDetailScreen(product: arg);
+    }
+    // Fallback if only ID is passed
+    final id = arg is String ? arg : DummyData.fastFoodItems.first.id;
+    final product = DummyData.findById(id) ?? DummyData.fastFoodItems.first;
+    return ProductDetailScreen(product: product);
+  }
+
   static Widget _buildTiffinDetail(BuildContext context) {
     final arg = ModalRoute.of(context)?.settings.arguments;
+    if (arg is ProductModel) {
+      return TiffinDetailScreen(product: arg);
+    }
     final id = arg is String ? arg : DummyData.todayTiffinMeal.id;
     final product = DummyData.findById(id) ?? DummyData.todayTiffinMeal;
     return TiffinDetailScreen(product: product);
@@ -110,6 +138,9 @@ class NarsinghKitchenApp extends StatelessWidget {
 
   static Widget _buildSpiceDetail(BuildContext context) {
     final arg = ModalRoute.of(context)?.settings.arguments;
+    if (arg is ProductModel) {
+      return SpiceDetailScreen(product: arg);
+    }
     final id = arg is String ? arg : DummyData.spiceItems.first.id;
     final product = DummyData.findById(id) ?? DummyData.spiceItems.first;
     return SpiceDetailScreen(product: product);
@@ -137,11 +168,40 @@ class NarsinghKitchenApp extends StatelessWidget {
   static Widget _buildAddEditProduct(BuildContext context) {
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is Map) {
+      final kindStr = args['kind'];
+      final initialKind = ProductKind.values.firstWhere(
+        (k) => k.name == kindStr,
+        orElse: () => ProductKind.fastFood,
+      );
       return AddEditProductScreen(
         product: args['product'],
-        initialCategory: (args['category'] as String?) ?? 'Fast Food',
+        initialKind: initialKind,
       );
     }
-    return const AddEditProductScreen(initialCategory: 'Fast Food');
+    return const AddEditProductScreen(initialKind: ProductKind.fastFood);
+  }
+
+  static Widget _buildAddFastFood(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      return AddFastFoodScreen(product: args['product']);
+    }
+    return const AddFastFoodScreen();
+  }
+
+  static Widget _buildAddTiffin(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      return AddTiffinScreen(product: args['product']);
+    }
+    return const AddTiffinScreen();
+  }
+
+  static Widget _buildAddSpice(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      return AddSpiceScreen(product: args['product']);
+    }
+    return const AddSpiceScreen();
   }
 }

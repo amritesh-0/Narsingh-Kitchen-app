@@ -4,8 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/widgets/quantity_stepper.dart';
 
+import '../../data/cart_service.dart';
+import '../../models/product_model.dart';
+
 class ProductDetailScreen extends StatefulWidget {
-  const ProductDetailScreen({super.key});
+  const ProductDetailScreen({super.key, required this.product});
+
+  final ProductModel product;
 
   @override
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
@@ -91,10 +96,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ],
                             ),
                             const SizedBox(height: 16),
-                            const Center(
+                            Center(
                               child: Text(
-                                '🍔',
-                                style: TextStyle(fontSize: 130),
+                                widget.product.emoji,
+                                style: const TextStyle(fontSize: 130),
                               ),
                             ),
                           ],
@@ -121,7 +126,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           children: [
                             Expanded(
                               child: Text(
-                                'Classic Veg Burger',
+                                widget.product.name,
                                 style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 22,
@@ -130,7 +135,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                             ),
                             Text(
-                              '₹180',
+                              '₹${widget.product.price.toStringAsFixed(0)}',
                               style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 22,
@@ -141,14 +146,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '🍔 Fast Food   •   ⭐ 4.8 (320 reviews)',
+                          '${_kindLabel(widget.product.kind)}   •   ⭐ ${widget.product.rating} (320 reviews)',
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w400,
                             fontSize: 13,
                             color: AppColors.textSecondary,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 16),
                         Row(
@@ -191,9 +194,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'A crispy veg patty with fresh lettuce, tomato, '
-                          'onion & signature sauce — flame-grilled flavour '
-                          'without the guilt. Served warm with premium buns.',
+                          widget.product.subtitle.isNotEmpty 
+                            ? widget.product.subtitle 
+                            : 'Authentic flavor crafted with the finest ingredients. '
+                              'Prepared fresh daily to ensure premium quality and taste.',
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w400,
                             fontSize: 14,
@@ -307,16 +311,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         child: SizedBox(
                           height: 52,
                           child: ElevatedButton(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Added to cart! Quantity: $_qty',
-                                    style: GoogleFonts.poppins(),
-                                  ),
-                                  duration: const Duration(milliseconds: 1200),
-                                ),
+                            onPressed: () async {
+                              final variant = widget.product.kind == ProductKind.spice 
+                                  ? _sizes[_sizeIndex] 
+                                  : null;
+                                  
+                              await CartService.instance.addProduct(
+                                widget.product,
+                                quantity: _qty,
+                                variantLabel: variant,
                               );
+
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Added to cart! Quantity: $_qty',
+                                      style: GoogleFonts.poppins(),
+                                    ),
+                                    duration: const Duration(milliseconds: 1200),
+                                  ),
+                                );
+                              }
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primaryRed,
@@ -330,7 +346,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                             ),
                             child: Text(
-                              '🛒  Add to Cart  •  ₹${180 + (_addonCheese ? 30 : 0) + (_addonPatty ? 50 : 0)}',
+                              '🛒  Add to Cart  •  ₹${(widget.product.priceForVariant(widget.product.kind == ProductKind.spice ? _sizes[_sizeIndex] : null) * _qty).toStringAsFixed(0)}',
                             ),
                           ),
                         ),
@@ -344,6 +360,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ],
       ),
     );
+  }
+
+  String _kindLabel(ProductKind kind) {
+    switch (kind) {
+      case ProductKind.fastFood:
+        return '🍔 Fast Food';
+      case ProductKind.tiffinMeal:
+        return '🍱 Tiffin Meal';
+      case ProductKind.spice:
+        return '🌶️ Spices';
+    }
   }
 
   Widget _addonRow({

@@ -142,7 +142,7 @@ class _OrderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, AppRoutes.productDetail, arguments: order.id), // Placeholder
+      onTap: () => Navigator.pushNamed(context, AppRoutes.orderDetail, arguments: order.id),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(

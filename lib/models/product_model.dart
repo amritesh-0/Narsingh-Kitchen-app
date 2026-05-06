@@ -51,6 +51,52 @@ class ProductModel {
   /// Fast food ETA label when relevant.
   final String? deliveryEta;
 
+  factory ProductModel.fromFirestore(Map<String, dynamic> json, String docId) {
+    return ProductModel(
+      id: docId,
+      name: json['name'] ?? '',
+      emoji: json['emoji'] ?? '🍔',
+      kind: ProductKind.values.firstWhere(
+        (e) => e.name == (json['kind'] ?? 'fastFood'),
+        orElse: () => ProductKind.fastFood,
+      ),
+      price: (json['price'] ?? 0.0).toDouble(),
+      rating: (json['rating'] ?? 0.0).toDouble(),
+      tag: json['tag'] ?? '',
+      subtitle: json['subtitle'] ?? '',
+      spiceCategory: json['spiceCategory'] ?? 'All',
+      weightPrices: json['weightPrices'] != null 
+          ? Map<String, double>.from(json['weightPrices'].map((k, v) => MapEntry(k, v.toDouble())))
+          : null,
+      mealComponents: List<String>.from(json['mealComponents'] ?? []),
+      nutritionLines: List<String>.from(json['nutritionLines'] ?? []),
+      weeklyRotation: List<String>.from(json['weeklyRotation'] ?? []),
+      farmRegion: json['farmRegion'],
+      purityPercent: (json['purityPercent'] ?? 0.0).toDouble(),
+      deliveryEta: json['deliveryEta'],
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'name': name,
+      'emoji': emoji,
+      'kind': kind.name,
+      'price': price,
+      'rating': rating,
+      'tag': tag,
+      'subtitle': subtitle,
+      'spiceCategory': spiceCategory,
+      'weightPrices': weightPrices,
+      'mealComponents': mealComponents,
+      'nutritionLines': nutritionLines,
+      'weeklyRotation': weeklyRotation,
+      'farmRegion': farmRegion,
+      'purityPercent': purityPercent,
+      'deliveryEta': deliveryEta,
+    };
+  }
+
   String get ratingLabel => rating.toStringAsFixed(1);
 
   double priceForVariant(String? weightLabel) {

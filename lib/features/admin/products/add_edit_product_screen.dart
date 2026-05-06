@@ -3,16 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../data/admin_dummy_data.dart';
+import '../../../core/services/product_service.dart';
+import '../../../models/product_model.dart';
 
 class AddEditProductScreen extends StatefulWidget {
-  final AdminProduct? product;
-  final String initialCategory;
+  final ProductModel? product;
+  final ProductKind initialKind;
 
   const AddEditProductScreen({
     super.key,
     this.product,
-    required this.initialCategory,
+    required this.initialKind,
   });
 
   @override
@@ -25,10 +26,8 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   late TextEditingController _priceCtrl;
   late TextEditingController _descCtrl;
   late TextEditingController _emojiCtrl;
-  late String _selectedCategory;
+  late ProductKind _selectedKind;
   late bool _isAvailable;
-
-  final _categories = ['Fast Food', 'Tiffin', 'Spices'];
 
   bool get _isEditing => widget.product != null;
 
@@ -38,10 +37,10 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     final p = widget.product;
     _nameCtrl = TextEditingController(text: p?.name ?? '');
     _priceCtrl = TextEditingController(text: p != null ? p.price.toStringAsFixed(0) : '');
-    _descCtrl = TextEditingController(text: p?.description ?? '');
+    _descCtrl = TextEditingController(text: p?.subtitle ?? '');
     _emojiCtrl = TextEditingController(text: p?.emoji ?? '🍽️');
-    _selectedCategory = p?.category ?? widget.initialCategory;
-    _isAvailable = p?.isAvailable ?? true;
+    _selectedKind = p?.kind ?? widget.initialKind;
+    _isAvailable = true; // Placeholder for now
   }
 
   @override
@@ -53,45 +52,43 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_isEditing) {
-      widget.product!
-        ..name = _nameCtrl.text.trim()
-        ..price = double.parse(_priceCtrl.text.trim())
-        ..description = _descCtrl.text.trim()
-        ..emoji = _emojiCtrl.text.trim()
-        ..category = _selectedCategory
-        ..isAvailable = _isAvailable;
-    } else {
-      final newProduct = AdminProduct(
-        id: 'P-${DateTime.now().millisecondsSinceEpoch}',
-        name: _nameCtrl.text.trim(),
-        price: double.parse(_priceCtrl.text.trim()),
-        category: _selectedCategory,
-        description: _descCtrl.text.trim(),
-        emoji: _emojiCtrl.text.trim(),
-        isAvailable: _isAvailable,
-      );
-      switch (_selectedCategory) {
-        case 'Fast Food':
-          AdminDummyData.fastFoodProducts.add(newProduct);
-        case 'Tiffin':
-          AdminDummyData.tiffinProducts.add(newProduct);
-        case 'Spices':
-          AdminDummyData.spicesProducts.add(newProduct);
-      }
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          _isEditing ? 'Product updated!' : 'Product added!',
-          style: GoogleFonts.poppins(),
-        ),
-        backgroundColor: AppColors.successGreen,
-      ),
+
+    final product = ProductModel(
+      id: widget.product?.id ?? '',
+      name: _nameCtrl.text.trim(),
+      price: double.parse(_priceCtrl.text.trim()),
+      subtitle: _descCtrl.text.trim(),
+      emoji: _emojiCtrl.text.trim(),
+      kind: _selectedKind,
+      tag: 'New', 
+      rating: widget.product?.rating ?? 5.0,
+      spiceCategory: widget.product?.spiceCategory ?? 'All',
+      weightPrices: widget.product?.weightPrices,
+      mealComponents: widget.product?.mealComponents ?? [],
+      nutritionLines: widget.product?.nutritionLines ?? [],
+      weeklyRotation: widget.product?.weeklyRotation ?? [],
     );
-    Navigator.pop(context);
+
+    if (_isEditing) {
+      await ProductService.instance.updateProduct(product);
+    } else {
+      await ProductService.instance.addProduct(product);
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isEditing ? 'Product updated!' : 'Product added!',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: AppColors.successGreen,
+        ),
+      );
+      Navigator.pop(context);
+    }
   }
 
   @override
@@ -147,7 +144,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                 },
               ),
               const SizedBox(height: 12),
-              _categoryDropdown(),
+              _kindDropdown(),
               const SizedBox(height: 12),
               _field(
                 controller: _descCtrl,
@@ -178,6 +175,31 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _kindDropdown() {
+    return DropdownButtonFormField<ProductKind>(
+      value: _selectedKind,
+      decoration: InputDecoration(
+        labelText: 'Category',
+        prefixIcon: const Icon(Icons.category_rounded, size: 20),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+        filled: true,
+        fillColor: AppColors.whiteSurface,
+      ),
+      style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textPrimary),
+      items: ProductKind.values
+          .map((k) => DropdownMenuItem(
+                value: k,
+                child: Text(k == ProductKind.fastFood
+                    ? 'Fast Food'
+                    : k == ProductKind.tiffinMeal
+                        ? 'Tiffin'
+                        : 'Spices'),
+              ))
+          .toList(),
+      onChanged: (v) => setState(() => _selectedKind = v!),
     );
   }
 
@@ -231,23 +253,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
     );
   }
 
-  Widget _categoryDropdown() {
-    return DropdownButtonFormField<String>(
-      initialValue: _selectedCategory,
-      decoration: InputDecoration(
-        labelText: 'Category',
-        prefixIcon: const Icon(Icons.category_rounded, size: 20),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-        filled: true,
-        fillColor: AppColors.whiteSurface,
-      ),
-      style: GoogleFonts.poppins(fontSize: 14, color: AppColors.textPrimary),
-      items: _categories
-          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-          .toList(),
-      onChanged: (v) => setState(() => _selectedCategory = v!),
-    );
-  }
+  // _kindDropdown handles this now.
 
   Widget _availableToggle() {
     return Container(

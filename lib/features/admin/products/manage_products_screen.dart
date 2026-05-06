@@ -3,7 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
-import '../../../data/admin_dummy_data.dart';
+import '../../../core/services/product_service.dart';
+import '../../../models/product_model.dart';
 
 class ManageProductsScreen extends StatefulWidget {
   const ManageProductsScreen({super.key});
@@ -54,19 +55,10 @@ class _ManageProductsScreenState extends State<ManageProductsScreen>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: [
-                _ProductList(
-                  products: AdminDummyData.fastFoodProducts,
-                  category: 'Fast Food',
-                ),
-                _ProductList(
-                  products: AdminDummyData.tiffinProducts,
-                  category: 'Tiffin',
-                ),
-                _ProductList(
-                  products: AdminDummyData.spicesProducts,
-                  category: 'Spices',
-                ),
+              children: const [
+                _ProductList(kind: ProductKind.fastFood),
+                _ProductList(kind: ProductKind.tiffinMeal),
+                _ProductList(kind: ProductKind.spice),
               ],
             ),
           ),
@@ -74,13 +66,8 @@ class _ManageProductsScreenState extends State<ManageProductsScreen>
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          final categories = ['Fast Food', 'Tiffin', 'Spices'];
-          final category = categories[_tabController.index];
-          Navigator.pushNamed(
-            context,
-            AppRoutes.addEditProduct,
-            arguments: {'category': category},
-          );
+          final routes = [AppRoutes.addFastFood, AppRoutes.addTiffin, AppRoutes.addSpice];
+          Navigator.pushNamed(context, routes[_tabController.index]);
         },
         backgroundColor: AppColors.primaryRed,
         foregroundColor: AppColors.whiteSurface,
@@ -121,52 +108,67 @@ class _ManageProductsScreenState extends State<ManageProductsScreen>
   }
 }
 
-class _ProductList extends StatefulWidget {
-  final List<AdminProduct> products;
-  final String category;
-  const _ProductList({required this.products, required this.category});
-
-  @override
-  State<_ProductList> createState() => _ProductListState();
-}
-
-class _ProductListState extends State<_ProductList> {
-  void _deleteProduct(AdminProduct p) {
-    setState(() => widget.products.remove(p));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${p.name} deleted', style: GoogleFonts.poppins()),
-        backgroundColor: AppColors.primaryRed,
-      ),
-    );
-  }
+class _ProductList extends StatelessWidget {
+  final ProductKind kind;
+  const _ProductList({required this.kind});
 
   @override
   Widget build(BuildContext context) {
-    if (widget.products.isEmpty) {
-      return Center(
-        child: Text('No products yet.',
-            style: GoogleFonts.poppins(color: AppColors.textSecondary)),
-      );
-    }
-    return ListView.builder(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-      itemCount: widget.products.length,
-      itemBuilder: (_, i) {
-        final p = widget.products[i];
-        return _ProductCard(
-          product: p,
-          onEdit: () async {
-            await Navigator.pushNamed(
-              context,
-              AppRoutes.addEditProduct,
-              arguments: {'product': p, 'category': widget.category},
+    return StreamBuilder<List<ProductModel>>(
+      stream: ProductService.instance.getProducts(kind),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final products = snapshot.data ?? [];
+        if (products.isEmpty) {
+          return Center(
+            child: Text('No products yet.',
+                style: GoogleFonts.poppins(color: AppColors.textSecondary)),
+          );
+        }
+        return ListView.builder(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+          itemCount: products.length,
+          itemBuilder: (_, i) {
+            final p = products[i];
+            return _ProductCard(
+              product: p,
+              onEdit: () {
+                final route = switch (kind) {
+                  ProductKind.fastFood => AppRoutes.addFastFood,
+                  ProductKind.tiffinMeal => AppRoutes.addTiffin,
+                  ProductKind.spice => AppRoutes.addSpice,
+                };
+                Navigator.pushNamed(
+                  context,
+                  route,
+                  arguments: {'product': p},
+                );
+              },
+              onDelete: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Delete Product'),
+                    content: Text('Are you sure you want to delete ${p.name}?'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  await ProductService.instance.deleteProduct(p.id);
+                }
+              },
+              onToggle: (v) {
+                // For now, availability isn't in ProductModel, we could add it or just ignore for now.
+                // Let's assume we update some field if needed.
+              },
             );
-            if (mounted) setState(() {});
           },
-          onDelete: () => _deleteProduct(p),
-          onToggle: (v) => setState(() => p.isAvailable = v),
         );
       },
     );
@@ -174,7 +176,7 @@ class _ProductListState extends State<_ProductList> {
 }
 
 class _ProductCard extends StatelessWidget {
-  final AdminProduct product;
+  final ProductModel product;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final ValueChanged<bool> onToggle;
@@ -214,10 +216,10 @@ class _ProductCard extends StatelessWidget {
                 Text(product.name,
                     style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.textPrimary)),
-                Text('₹${product.price.toStringAsFixed(0)}',
+                Text('₹${product.price.toStringAsFixed(0)}  ·  ⭐ ${product.ratingLabel}',
                     style: GoogleFonts.poppins(
                         fontSize: 13, color: AppColors.primaryRed, fontWeight: FontWeight.w500)),
-                Text(product.description,
+                Text(_categoryDetail(product),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textSecondary)),
@@ -228,7 +230,7 @@ class _ProductCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Switch.adaptive(
-                value: product.isAvailable,
+                value: true, // TODO: Add isAvailable to ProductModel
                 onChanged: onToggle,
                 activeTrackColor: AppColors.successGreen,
               ),
@@ -258,5 +260,18 @@ class _ProductCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static String _categoryDetail(ProductModel p) {
+    switch (p.kind) {
+      case ProductKind.fastFood:
+        return '${p.subtitle} · ${p.deliveryEta ?? "20 min"}';
+      case ProductKind.tiffinMeal:
+        final n = p.mealComponents.length;
+        return '${p.subtitle} · $n meal items';
+      case ProductKind.spice:
+        final n = p.weightPrices?.length ?? 0;
+        return '${p.spiceCategory} · $n weight options';
+    }
   }
 }

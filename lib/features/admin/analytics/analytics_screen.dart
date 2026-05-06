@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/admin_service.dart';
 import '../../../data/admin_dummy_data.dart';
 
 class AnalyticsScreen extends StatelessWidget {
@@ -11,24 +12,36 @@ class AnalyticsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(child: _header(context)),
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                _topStats(),
-                const SizedBox(height: 20),
-                _weeklyChart(),
-                const SizedBox(height: 20),
-                _topProducts(),
-                const SizedBox(height: 20),
-              ]),
-            ),
-          ),
-        ],
+      body: StreamBuilder<Map<String, dynamic>>(
+        stream: AdminService.instance.getDashboardStats(),
+        builder: (context, snapshot) {
+          final statsData = snapshot.data ?? {
+            'totalOrders': 0,
+            'revenue': 0.0,
+            'pendingOrders': 0,
+            'deliveredOrders': 0,
+          };
+
+          return CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(child: _header(context)),
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _topStats(statsData),
+                    const SizedBox(height: 20),
+                    _weeklyChart(statsData['weeklyOrders'] as List<dynamic>? ?? []),
+                    const SizedBox(height: 20),
+                    _topProducts(statsData['topProducts'] as List<dynamic>? ?? []),
+                    const SizedBox(height: 20),
+                  ]),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -61,11 +74,11 @@ class AnalyticsScreen extends StatelessWidget {
     );
   }
 
-  Widget _topStats() {
+  Widget _topStats(Map<String, dynamic> data) {
     final stats = [
-      ('Revenue', '₹${AdminDummyData.totalRevenue.toStringAsFixed(0)}', Icons.currency_rupee_rounded, AppColors.successGreen),
-      ('Orders', AdminDummyData.totalOrdersToday.toString(), Icons.receipt_long_rounded, Colors.blue),
-      ('Customers', AdminDummyData.customers.length.toString(), Icons.people_rounded, AppColors.primaryOrange),
+      ('Revenue', '₹${(data['revenue'] as double? ?? 0.0).toStringAsFixed(0)}', Icons.currency_rupee_rounded, AppColors.successGreen),
+      ('Orders', (data['totalOrders'] ?? 0).toString(), Icons.receipt_long_rounded, Colors.blue),
+      ('Customers', (data['customerCount'] ?? 0).toString(), Icons.people_rounded, AppColors.primaryOrange),
     ];
 
     return Row(
@@ -97,9 +110,9 @@ class AnalyticsScreen extends StatelessWidget {
     );
   }
 
-  Widget _weeklyChart() {
-    final data = AdminDummyData.weeklyOrders;
-    final maxOrders = data.map((d) => d.orders).reduce((a, b) => a > b ? a : b);
+  Widget _weeklyChart(List<dynamic> data) {
+    if (data.isEmpty) return const SizedBox.shrink();
+    final maxOrders = data.map((d) => d['orders'] as int).reduce((a, b) => a > b ? a : b);
 
     return Container(
       decoration: BoxDecoration(
@@ -116,16 +129,16 @@ class AnalyticsScreen extends StatelessWidget {
                   fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.textPrimary)),
           const SizedBox(height: 16),
           SizedBox(
-            height: 140,
+            height: 160,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: data.map((d) {
-                final fraction = maxOrders > 0 ? d.orders / maxOrders : 0.0;
+                final fraction = maxOrders > 0 ? (d['orders'] as int) / maxOrders : 0.0;
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text('${d.orders}',
+                    Text('${d['orders']}',
                         style: GoogleFonts.poppins(fontSize: 10, color: AppColors.textSecondary)),
                     const SizedBox(height: 4),
                     AnimatedContainer(
@@ -143,7 +156,7 @@ class AnalyticsScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(d.day,
+                    Text(d['day'] as String,
                         style: GoogleFonts.poppins(
                             fontSize: 10,
                             fontWeight: FontWeight.w500,
@@ -158,8 +171,8 @@ class AnalyticsScreen extends StatelessWidget {
     );
   }
 
-  Widget _topProducts() {
-    final products = AdminDummyData.topSellingProducts;
+  Widget _topProducts(List<dynamic> products) {
+    if (products.isEmpty) return const SizedBox.shrink();
     final maxOrders = products.map((p) => p['orders'] as int).reduce((a, b) => a > b ? a : b);
 
     return Container(
