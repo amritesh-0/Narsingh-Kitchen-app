@@ -15,143 +15,197 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(milliseconds: 2500), _navigate);
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    );
+
+    _controller.forward();
+    _timer = Timer(const Duration(milliseconds: 3000), _navigate);
   }
 
   Future<void> _navigate() async {
+    debugPrint('SplashScreen: Starting navigation logic...');
     if (!mounted) return;
-    final role = await AuthService.instance.getUserRole();
-    if (!mounted) return;
-    if (role == 'admin') {
-      Navigator.pushReplacementNamed(context, AppRoutes.adminBottomNav);
-    } else if (role == 'customer') {
-      Navigator.pushReplacementNamed(context, AppRoutes.bottomNav);
-    } else {
-      Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+    try {
+      final role = await AuthService.instance.getUserRole();
+      debugPrint('SplashScreen: User role fetched: $role');
+      if (!mounted) return;
+      
+      if (role == 'admin') {
+        debugPrint('SplashScreen: Navigating to Admin Dashboard');
+        Navigator.pushReplacementNamed(context, AppRoutes.adminBottomNav);
+      } else if (role == 'customer') {
+        debugPrint('SplashScreen: Navigating to Customer Home');
+        Navigator.pushReplacementNamed(context, AppRoutes.bottomNav);
+      } else {
+        debugPrint('SplashScreen: No role found, navigating to Onboarding');
+        Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+      }
+    } catch (e) {
+      debugPrint('SplashScreen: Error during navigation: $e');
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+      }
     }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primaryRed,
-      body: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            bottom: -100,
-            left: -100,
-            child: Container(
-              width: 400,
-              height: 400,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.whiteSurface.withValues(alpha: 0.08),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.primaryRed,
+              Color(0xFFB71C1C),
+            ],
+          ),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Decorative background circles
+            Positioned(
+              top: -100,
+              right: -100,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.05),
+                ),
               ),
             ),
-          ),
-          Positioned(
-            top: -80,
-            right: -80,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.whiteSurface.withValues(alpha: 0.06),
+            Positioned(
+              bottom: -50,
+              left: -50,
+              child: Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.03),
+                ),
               ),
             ),
-          ),
-          SafeArea(
-            child: Column(
+            
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Spacer(),
-                Container(
-                  width: 140,
-                  height: 140,
-                  decoration: const BoxDecoration(
-                    color: AppColors.whiteSurface,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text('🍽️', style: TextStyle(fontSize: 64)),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  AppStrings.appDisplayName,
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 32,
-                    color: AppColors.whiteSurface,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  AppStrings.tagline,
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w400,
-                    fontSize: 14,
-                    color: AppColors.whiteSurface.withValues(alpha: 0.7),
+                FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: ScaleTransition(
+                    scale: _scaleAnimation,
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        width: 120,
+                        height: 120,
+                      ),
+                    ),
                   ),
                 ),
-                const Spacer(),
-                Text(
-                  AppStrings.footerSplash,
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 14,
-                    color: AppColors.whiteSurface,
+                const SizedBox(height: 32),
+                FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Column(
+                    children: [
+                      Text(
+                        AppStrings.appDisplayName,
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 36,
+                          color: Colors.white,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        AppStrings.tagline,
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w400,
+                          fontSize: 16,
+                          color: Colors.white.withValues(alpha: 0.8),
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              ],
+            ),
+            
+            Positioned(
+              bottom: 40,
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Column(
                   children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: AppColors.whiteSurface,
-                        shape: BoxShape.circle,
+                    Text(
+                      AppStrings.footerSplash,
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: AppColors.whiteSurface.withValues(alpha: 0.4),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: AppColors.whiteSurface.withValues(alpha: 0.4),
-                        shape: BoxShape.circle,
+                    const SizedBox(height: 16),
+                    const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 40),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

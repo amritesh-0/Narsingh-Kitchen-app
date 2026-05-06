@@ -37,11 +37,36 @@ class _SignInScreenState extends State<SignInScreen> {
     return null;
   }
 
+  bool _isLoading = false;
+
   Future<void> _handleSignIn() async {
     if (!_formKey.currentState!.validate()) return;
-    await AuthService.instance.saveUserRole(_selectedRole);
-    if (!mounted) return;
-    Navigator.pushReplacementNamed(context, AppRoutes.otp);
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      await AuthService.instance.signIn(
+        _emailCtrl.text.trim(),
+        _passwordCtrl.text.trim(),
+      );
+      
+      if (!mounted) return;
+      
+      // Navigate based on role
+      final role = await AuthService.instance.getUserRole();
+      if (role == 'admin') {
+        Navigator.pushReplacementNamed(context, AppRoutes.adminBottomNav);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.bottomNav);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -179,14 +204,23 @@ class _SignInScreenState extends State<SignInScreen> {
                         width: double.infinity,
                         height: 56,
                         child: ElevatedButton(
-                          onPressed: _handleSignIn,
+                          onPressed: _isLoading ? null : _handleSignIn,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primaryRed,
                             foregroundColor: AppColors.whiteSurface,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16),
                           ),
-                          child: const Text('Sign In'),
+                          child: _isLoading 
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Sign In'),
                         ),
                       ),
                       const SizedBox(height: 24),

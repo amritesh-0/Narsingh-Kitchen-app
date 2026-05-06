@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'core/constants/app_routes.dart';
@@ -36,8 +37,16 @@ import 'features/tiffin/subscription_plan_screen.dart';
 import 'features/tiffin/tiffin_detail_screen.dart';
 import 'features/tiffin/tiffin_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+    debugPrint('Make sure you have added google-services.json / GoogleService-Info.plist');
+  }
+  
   CartService.instance.seedDemoIfEmpty();
   runApp(const NarsinghKitchenApp());
 }

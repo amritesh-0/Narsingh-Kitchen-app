@@ -8,7 +8,7 @@ class OnboardingPage extends StatelessWidget {
   const OnboardingPage({
     super.key,
     required this.color,
-    required this.emoji,
+    required this.image,
     required this.title,
     required this.description,
     required this.buttonText,
@@ -19,7 +19,7 @@ class OnboardingPage extends StatelessWidget {
   });
 
   final Color color;
-  final String emoji;
+  final String image;
   final String title;
   final String description;
   final String buttonText;
@@ -30,7 +30,7 @@ class OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.sizeOf(context).height * 0.6;
+    final height = MediaQuery.sizeOf(context).height * 0.55;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -39,135 +39,133 @@ class OnboardingPage extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(30),
+                Container(
+                  height: height,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(60),
+                    ),
                   ),
-                  child: SizedBox(
-                    height: height,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(color: color),
-                        Positioned(
-                          top: 16,
-                          right: 20,
-                          child: GestureDetector(
-                            onTap: onSkip,
-                            behavior: HitTestBehavior.opaque,
-                            child: Text(
-                              'Skip',
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 14,
-                                color: AppColors.whiteSurface,
-                              ),
-                            ),
-                          ),
+                  child: Stack(
+                    children: [
+                      // Decorative elements
+                      Positioned(
+                        top: -50,
+                        left: -50,
+                        child: CircleAvatar(
+                          radius: 100,
+                          backgroundColor: color.withValues(alpha: 0.05),
                         ),
-                        Center(
-                          child: Stack(
-                            alignment: Alignment.center,
+                      ),
+                      Positioned(
+                        bottom: 40,
+                        right: -30,
+                        child: CircleAvatar(
+                          radius: 60,
+                          backgroundColor: color.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      
+                      SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              Container(
-                                width: 240,
-                                height: 240,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppColors.whiteSurface.withValues(
-                                    alpha: 0.25,
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                width: 180,
-                                height: 180,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppColors.whiteSurface.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                width: 120,
-                                height: 120,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.whiteSurface,
-                                  shape: BoxShape.circle,
-                                ),
-                                alignment: Alignment.center,
+                              TextButton(
+                                onPressed: onSkip,
                                 child: Text(
-                                  emoji,
-                                  style: const TextStyle(fontSize: 70),
+                                  'Skip',
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                    color: color,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(40),
+                          child: Hero(
+                            tag: 'onboarding_$currentIndex',
+                            child: Image.asset(
+                              image,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Column(
                       children: [
-                        const SizedBox(height: 30),
+                        const SizedBox(height: 40),
                         Text(
                           title,
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 26,
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 30,
                             color: AppColors.textPrimary,
+                            height: 1.2,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         Text(
                           description,
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontWeight: FontWeight.w400,
-                            fontSize: 14,
+                            fontSize: 16,
                             color: AppColors.textSecondary,
-                            height: 1.45,
+                            height: 1.5,
                           ),
                         ),
                         const Spacer(),
-                        AnimatedSmoothIndicator(
-                          activeIndex: currentIndex,
-                          count: totalPages,
-                          effect: WormEffect(
-                            dotHeight: 8,
-                            dotWidth: 8,
-                            activeDotColor: color,
-                            dotColor: AppColors.dividerGray,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: color,
-                              foregroundColor: AppColors.whiteSurface,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              textStyle: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            AnimatedSmoothIndicator(
+                              activeIndex: currentIndex,
+                              count: totalPages,
+                              effect: ExpandingDotsEffect(
+                                dotHeight: 8,
+                                dotWidth: 8,
+                                activeDotColor: color,
+                                dotColor: AppColors.dividerGray,
+                                expansionFactor: 4,
+                                spacing: 6,
                               ),
                             ),
-                            onPressed: onNext,
-                            child: Text(buttonText),
-                          ),
+                            SizedBox(
+                              height: 64,
+                              width: 64,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: color,
+                                  foregroundColor: AppColors.whiteSurface,
+                                  padding: EdgeInsets.zero,
+                                  elevation: 4,
+                                  shadowColor: color.withValues(alpha: 0.4),
+                                  shape: const CircleBorder(),
+                                ),
+                                onPressed: onNext,
+                                child: const Icon(Icons.arrow_forward_ios_rounded, size: 24),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 40),
                       ],
                     ),
                   ),

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
+import '../../core/constants/app_strings.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/widgets/custom_textfield.dart';
 
@@ -14,13 +15,51 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  bool _isLoading = false;
   bool _isCustomer = true;
 
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _handleCreateAccount() async {
-    final role = _isCustomer ? 'customer' : 'admin';
-    await AuthService.instance.saveUserRole(role);
-    if (!mounted) return;
-    Navigator.pushNamed(context, AppRoutes.otp);
+    if (_emailCtrl.text.isEmpty || _passwordCtrl.text.isEmpty || _nameCtrl.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all fields')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    
+    try {
+      await AuthService.instance.signUp(
+        _emailCtrl.text.trim(),
+        _passwordCtrl.text.trim(),
+        _nameCtrl.text.trim(),
+      );
+      
+      if (!mounted) return;
+      
+      // After sign up, redirect to home or onboarding
+      Navigator.pushReplacementNamed(context, AppRoutes.bottomNav);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -54,7 +93,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Join FoodieExpress today!',
+                        'Join ${AppStrings.appDisplayName} today!',
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w400,
                           fontSize: 14,
@@ -70,27 +109,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const CustomTextField(
+                    CustomTextField(
+                      controller: _nameCtrl,
                       label: 'Full Name',
                       hint: 'John Doe',
                       prefixIcon: Icons.person_outline_rounded,
                     ),
                     const SizedBox(height: 16),
-                    const CustomTextField(
+                    CustomTextField(
+                      controller: _phoneCtrl,
                       label: 'Phone Number',
                       hint: '+91 98765 43210',
                       prefixIcon: Icons.phone_android_rounded,
                       keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: 16),
-                    const CustomTextField(
+                    CustomTextField(
+                      controller: _emailCtrl,
                       label: 'Email Address',
                       hint: 'john@email.com',
                       prefixIcon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
                     ),
                     const SizedBox(height: 16),
-                    const CustomTextField(
+                    CustomTextField(
+                      controller: _passwordCtrl,
                       label: 'Password',
                       hint: 'Min. 8 characters',
                       obscureText: true,
@@ -185,16 +228,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     SizedBox(
                       width: double.infinity,
                       height: 56,
-                      child: ElevatedButton(
-                        onPressed: _handleCreateAccount,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryRed,
-                          foregroundColor: AppColors.whiteSurface,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16),
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _handleCreateAccount,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryRed,
+                            foregroundColor: AppColors.whiteSurface,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16),
+                          ),
+                          child: _isLoading 
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Create Account'),
                         ),
-                        child: const Text('Create Account'),
-                      ),
                     ),
                     const SizedBox(height: 24),
                     Row(

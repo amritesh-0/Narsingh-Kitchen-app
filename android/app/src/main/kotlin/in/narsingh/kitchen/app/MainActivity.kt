@@ -1,4 +1,4 @@
-package com.example.narsingh_kitchen
+package `in`.narsingh.kitchen.app
 
 import io.flutter.embedding.android.FlutterActivity
 
