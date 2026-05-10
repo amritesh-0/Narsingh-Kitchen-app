@@ -27,6 +27,9 @@ abstract final class AppRoutes {
   static const String myOrders = '/my-orders';
   static const String userProfile = '/user-profile';
   static const String savedItems = '/saved-items';
+  static const String savedAddresses = '/saved-addresses';
+  static const String paymentMethods = '/payment-methods';
+  static const String mySubscriptions = '/my-subscriptions';
 
   // ── Admin Routes ──────────────────────────────────────────────────────────
   static const String adminBottomNav = '/admin-bottom-nav';

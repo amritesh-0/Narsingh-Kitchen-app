@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../models/address_model.dart';
 
 class AuthService {
   AuthService._();
@@ -87,6 +88,46 @@ class AuthService {
   Future<Map<String, dynamic>?> getUserDetails(String uid) async {
     final doc = await _firestore.collection('users').doc(uid).get();
     return doc.data();
+  }
+
+  Stream<Map<String, dynamic>?> getUserDetailsStream(String uid) {
+    return _firestore.collection('users').doc(uid).snapshots().map((doc) => doc.data());
+  }
+
+  Future<void> updateUserDetails(String uid, Map<String, dynamic> data) async {
+    await _firestore.collection('users').doc(uid).update(data);
+  }
+
+  // ── Address Management ──────────────────────────────────────────────────
+  Stream<List<AddressModel>> getAddressesStream(String uid) {
+    return _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('addresses')
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((doc) => AddressModel.fromFirestore(doc.data(), doc.id))
+            .toList());
+  }
+
+  Future<void> addAddress(String uid, AddressModel address) async {
+    await _firestore.collection('users').doc(uid).collection('addresses').add(address.toFirestore());
+  }
+
+  Future<void> deleteAddress(String uid, String addressId) async {
+    await _firestore.collection('users').doc(uid).collection('addresses').doc(addressId).delete();
+  }
+
+  Future<void> setDefaultAddress(String uid, String addressId) async {
+    final batch = _firestore.batch();
+    final col = _firestore.collection('users').doc(uid).collection('addresses');
+    final all = await col.get();
+    
+    for (var doc in all.docs) {
+      batch.update(doc.reference, {'isDefault': doc.id == addressId});
+    }
+    
+    await batch.commit();
   }
 
   Future<void> resetPassword(String email) async {

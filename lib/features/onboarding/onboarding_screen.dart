@@ -18,7 +18,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   static final List<_OnboardingItem> _pages = [
     _OnboardingItem(
       color: AppColors.primaryRed,
-      image: 'assets/images/onboarding_fast_food.png',
+      emoji: '🍔',
       title: 'Fast Food Delivery',
       description:
           'Order your favourite burgers, pizza, sandwiches & more – delivered hot in under 30 minutes!',
@@ -26,7 +26,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
     _OnboardingItem(
       color: AppColors.primaryOrange,
-      image: 'assets/images/onboarding_tiffin.png',
+      emoji: '🍱',
       title: 'Tiffin Services',
       description:
           'Subscribe to daily home-cooked tiffin meals. Choose one-time or monthly subscription plans!',
@@ -34,7 +34,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     ),
     _OnboardingItem(
       color: AppColors.primaryBrown,
-      image: 'assets/images/onboarding_spices.png',
+      emoji: '🌶️',
       title: 'Premium Spices',
       description:
           'Shop from a wide range of pure aromatic spices sourced directly from farms across India.',
@@ -81,7 +81,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   final page = _pages[index];
                   return OnboardingPage(
                     color: page.color,
-                    image: page.image,
+                    emoji: page.emoji,
                     title: page.title,
                     description: page.description,
                     buttonText: page.buttonText,
@@ -103,14 +103,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 class _OnboardingItem {
   const _OnboardingItem({
     required this.color,
-    required this.image,
+    required this.emoji,
     required this.title,
     required this.description,
     required this.buttonText,
   });
 
   final Color color;
-  final String image;
+  final String emoji;
   final String title;
   final String description;
   final String buttonText;

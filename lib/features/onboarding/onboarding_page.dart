@@ -8,7 +8,7 @@ class OnboardingPage extends StatelessWidget {
   const OnboardingPage({
     super.key,
     required this.color,
-    required this.image,
+    required this.emoji,
     required this.title,
     required this.description,
     required this.buttonText,
@@ -19,7 +19,7 @@ class OnboardingPage extends StatelessWidget {
   });
 
   final Color color;
-  final String image;
+  final String emoji;
   final String title;
   final String description;
   final String buttonText;
@@ -42,28 +42,51 @@ class OnboardingPage extends StatelessWidget {
                 Container(
                   height: height,
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
+                    color: color,
                     borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(60),
+                      bottom: Radius.circular(40),
                     ),
                   ),
                   child: Stack(
                     children: [
-                      // Decorative elements
-                      Positioned(
-                        top: -50,
-                        left: -50,
-                        child: CircleAvatar(
-                          radius: 100,
-                          backgroundColor: color.withValues(alpha: 0.05),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 40,
-                        right: -30,
-                        child: CircleAvatar(
-                          radius: 60,
-                          backgroundColor: color.withValues(alpha: 0.08),
+                      // Concentric rings around the emoji
+                      Center(
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              width: 280,
+                              height: 280,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withValues(alpha: 0.1),
+                              ),
+                            ),
+                            Container(
+                              width: 220,
+                              height: 220,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withValues(alpha: 0.15),
+                              ),
+                            ),
+                            Container(
+                              width: 160,
+                              height: 160,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withValues(alpha: 0.25),
+                              ),
+                            ),
+                            Container(
+                              width: 110,
+                              height: 110,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       
@@ -80,7 +103,7 @@ class OnboardingPage extends StatelessWidget {
                                   style: GoogleFonts.outfit(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 15,
-                                    color: color,
+                                    color: Colors.white.withValues(alpha: 0.9),
                                   ),
                                 ),
                               ),
@@ -90,14 +113,11 @@ class OnboardingPage extends StatelessWidget {
                       ),
                       
                       Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(40),
-                          child: Hero(
-                            tag: 'onboarding_$currentIndex',
-                            child: Image.asset(
-                              image,
-                              fit: BoxFit.contain,
-                            ),
+                        child: Hero(
+                          tag: 'onboarding_$currentIndex',
+                          child: Text(
+                            emoji,
+                            style: const TextStyle(fontSize: 64),
                           ),
                         ),
                       ),
@@ -133,7 +153,7 @@ class OnboardingPage extends StatelessWidget {
                         ),
                         const Spacer(),
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             AnimatedSmoothIndicator(
                               activeIndex: currentIndex,
@@ -147,23 +167,30 @@ class OnboardingPage extends StatelessWidget {
                                 spacing: 6,
                               ),
                             ),
-                            SizedBox(
-                              height: 64,
-                              width: 64,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: color,
-                                  foregroundColor: AppColors.whiteSurface,
-                                  padding: EdgeInsets.zero,
-                                  elevation: 4,
-                                  shadowColor: color.withValues(alpha: 0.4),
-                                  shape: const CircleBorder(),
-                                ),
-                                onPressed: onNext,
-                                child: const Icon(Icons.arrow_forward_ios_rounded, size: 24),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 60,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: color,
+                              foregroundColor: AppColors.whiteSurface,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              elevation: 0,
+                            ),
+                            onPressed: onNext,
+                            child: Text(
+                              buttonText,
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
                               ),
                             ),
-                          ],
+                          ),
                         ),
                         const SizedBox(height: 40),
                       ],
