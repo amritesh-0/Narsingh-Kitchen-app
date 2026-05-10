@@ -1,20 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../data/admin_dummy_data.dart';
+import '../../../core/services/admin_service.dart';
 
-class ManageNotificationsScreen extends StatefulWidget {
+class ManageNotificationsScreen extends StatelessWidget {
   const ManageNotificationsScreen({super.key});
 
-  @override
-  State<ManageNotificationsScreen> createState() => _ManageNotificationsScreenState();
-}
-
-class _ManageNotificationsScreenState extends State<ManageNotificationsScreen> {
-  final _notifications = List<Map<String, String>>.from(AdminDummyData.notifications);
-
-  void _showSendDialog() {
+  void _showSendDialog(BuildContext context) {
     final titleCtrl = TextEditingController();
     final msgCtrl = TextEditingController();
     String selectedAudience = 'All';
@@ -23,17 +18,15 @@ class _ManageNotificationsScreenState extends State<ManageNotificationsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => StatefulBuilder(
-        builder: (ctx, setLocal) => Container(
+      builder: (ctx) => StatefulBuilder(
+        builder: (innerCtx, setLocal) => Container(
           decoration: const BoxDecoration(
             color: AppColors.whiteSurface,
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
           padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            left: 20, right: 20, top: 20,
+            bottom: MediaQuery.of(innerCtx).viewInsets.bottom + 20,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -41,24 +34,18 @@ class _ManageNotificationsScreenState extends State<ManageNotificationsScreen> {
             children: [
               Center(
                 child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.dividerGray,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: AppColors.dividerGray, borderRadius: BorderRadius.circular(4)),
                 ),
               ),
               const SizedBox(height: 16),
-              Text('Send Notification',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 18)),
+              Text('Send Notification', style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 18)),
               const SizedBox(height: 16),
               TextField(
                 controller: titleCtrl,
                 style: GoogleFonts.poppins(fontSize: 14),
                 decoration: InputDecoration(
                   labelText: 'Title',
-                  hintText: 'Weekend Special Offer!',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                 ),
               ),
@@ -69,7 +56,6 @@ class _ManageNotificationsScreenState extends State<ManageNotificationsScreen> {
                 style: GoogleFonts.poppins(fontSize: 14),
                 decoration: InputDecoration(
                   labelText: 'Message',
-                  hintText: 'Enter your message here…',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                 ),
               ),
@@ -96,32 +82,21 @@ class _ManageNotificationsScreenState extends State<ManageNotificationsScreen> {
               SizedBox(
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (titleCtrl.text.isNotEmpty && msgCtrl.text.isNotEmpty) {
-                      setState(() {
-                        _notifications.insert(0, {
-                          'title': titleCtrl.text,
-                          'message': msgCtrl.text,
-                          'audience': selectedAudience,
-                          'date': 'Just now',
-                        });
+                      await AdminService.instance.sendNotification({
+                        'title': titleCtrl.text,
+                        'message': msgCtrl.text,
+                        'audience': selectedAudience,
                       });
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Notification sent!', style: GoogleFonts.poppins()),
-                          backgroundColor: AppColors.successGreen,
-                        ),
-                      );
+                      if (innerCtx.mounted) Navigator.pop(innerCtx);
                     }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryRed,
-                    foregroundColor: AppColors.whiteSurface,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: Text('Send Notification',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
+                  child: Text('Send Now', style: GoogleFonts.poppins(fontWeight: FontWeight.w700, color: Colors.white)),
                 ),
               ),
             ],
@@ -135,29 +110,53 @@ class _ManageNotificationsScreenState extends State<ManageNotificationsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          _header(context),
-          Expanded(
-            child: _notifications.isEmpty
-                ? Center(
-                    child: Text('No notifications sent yet.',
-                        style: GoogleFonts.poppins(color: AppColors.textSecondary)))
-                : ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-                    itemCount: _notifications.length,
-                    itemBuilder: (_, i) => _NotificationCard(data: _notifications[i]),
-                  ),
-          ),
-        ],
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: AdminService.instance.getSentNotificationsStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final notifications = snapshot.data ?? [];
+
+          return Column(
+            children: [
+              _header(context),
+              Expanded(
+                child: notifications.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+                        itemCount: notifications.length,
+                        itemBuilder: (_, i) => _NotificationCard(data: notifications[i]),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showSendDialog,
+        onPressed: () => _showSendDialog(context),
         backgroundColor: AppColors.primaryRed,
         foregroundColor: AppColors.whiteSurface,
         icon: const Icon(Icons.send_rounded),
         label: Text('Send New', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.notifications_none_rounded, size: 64, color: AppColors.dividerGray.withValues(alpha: 0.5)),
+          const SizedBox(height: 16),
+          Text(
+            'No notifications sent yet',
+            style: GoogleFonts.poppins(color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+          ),
+        ],
       ),
     );
   }
@@ -174,15 +173,11 @@ class _ManageNotificationsScreenState extends State<ManageNotificationsScreen> {
       ),
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 12,
-        left: 20,
-        right: 20,
-        bottom: 20,
+        left: 20, right: 20, bottom: 20,
       ),
       child: Row(
         children: [
-          Text('Notifications',
-              style: GoogleFonts.poppins(
-                  fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.whiteSurface)),
+          Text('Notifications', style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.whiteSurface)),
           const Spacer(),
           Icon(Icons.notifications_rounded, color: AppColors.whiteSurface.withValues(alpha: 0.8)),
         ],
@@ -192,7 +187,7 @@ class _ManageNotificationsScreenState extends State<ManageNotificationsScreen> {
 }
 
 class _NotificationCard extends StatelessWidget {
-  final Map<String, String> data;
+  final Map<String, dynamic> data;
   const _NotificationCard({required this.data});
 
   @override
@@ -203,6 +198,13 @@ class _NotificationCard extends StatelessWidget {
       case 'Subscribers': audienceColor = AppColors.primaryOrange;
       default: audienceColor = AppColors.successGreen;
     }
+
+    String dateStr = 'Just now';
+    if (data['createdAt'] != null) {
+      final timestamp = data['createdAt'] as Timestamp;
+      dateStr = DateFormat('dd MMM, hh:mm a').format(timestamp.toDate());
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -215,12 +217,8 @@ class _NotificationCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.lightPinkBg,
-              borderRadius: BorderRadius.circular(12),
-            ),
+            width: 42, height: 42,
+            decoration: BoxDecoration(color: AppColors.lightPinkBg, borderRadius: BorderRadius.circular(12)),
             alignment: Alignment.center,
             child: const Icon(Icons.notifications_rounded, color: AppColors.primaryRed, size: 22),
           ),
@@ -229,30 +227,19 @@ class _NotificationCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(data['title'] ?? '',
-                    style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textPrimary)),
+                Text(data['title'] ?? '', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textPrimary)),
                 const SizedBox(height: 3),
-                Text(data['message'] ?? '',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary)),
+                Text(data['message'] ?? '', style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: audienceColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(data['audience'] ?? 'All',
-                          style: GoogleFonts.poppins(
-                              fontSize: 10, fontWeight: FontWeight.w600, color: audienceColor)),
+                      decoration: BoxDecoration(color: audienceColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+                      child: Text(data['audience'] ?? 'All', style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w600, color: audienceColor)),
                     ),
                     const Spacer(),
-                    Text(data['date'] ?? '',
-                        style: GoogleFonts.poppins(fontSize: 10, color: AppColors.textSecondary)),
+                    Text(dateStr, style: GoogleFonts.poppins(fontSize: 10, color: AppColors.textSecondary)),
                   ],
                 ),
               ],

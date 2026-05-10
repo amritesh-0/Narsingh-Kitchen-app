@@ -31,6 +31,9 @@ import 'features/home/bottom_nav_screen.dart';
 import 'features/home/home_screen.dart';
 import 'features/orders/orders_screen.dart';
 import 'features/profile/profile_screen.dart';
+import 'features/profile/addresses_screen.dart';
+import 'features/profile/payment_methods_screen.dart';
+import 'features/profile/subscriptions_screen.dart';
 import 'features/saved/saved_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/product/product_detail_screen.dart';
@@ -93,6 +96,9 @@ class NarsinghKitchenApp extends StatelessWidget {
         AppRoutes.myOrders: (_) => const OrdersScreen(),
         AppRoutes.userProfile: (_) => const ProfileScreen(),
         AppRoutes.savedItems: (_) => const SavedScreen(),
+        AppRoutes.savedAddresses: (_) => const AddressesScreen(),
+        AppRoutes.paymentMethods: (_) => const PaymentMethodsScreen(),
+        AppRoutes.mySubscriptions: (_) => const SubscriptionsScreen(),
 
         // ── Admin Routes ─────────────────────────────────────────────────────
         AppRoutes.adminBottomNav: (_) => const AdminBottomNav(),
