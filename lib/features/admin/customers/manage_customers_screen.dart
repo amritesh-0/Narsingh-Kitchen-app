@@ -2,56 +2,63 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../data/admin_dummy_data.dart';
+import '../../../core/services/admin_service.dart';
 
-class ManageCustomersScreen extends StatefulWidget {
+class ManageCustomersScreen extends StatelessWidget {
   const ManageCustomersScreen({super.key});
-
-  @override
-  State<ManageCustomersScreen> createState() => _ManageCustomersScreenState();
-}
-
-class _ManageCustomersScreenState extends State<ManageCustomersScreen> {
-  final _customers = AdminDummyData.customers;
-
-  void _toggleBlock(AdminCustomer c) {
-    setState(() => c.isBlocked = !c.isBlocked);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          c.isBlocked ? '${c.name} blocked' : '${c.name} unblocked',
-          style: GoogleFonts.poppins(),
-        ),
-        backgroundColor: c.isBlocked ? AppColors.primaryRed : AppColors.successGreen,
-        duration: const Duration(seconds: 1),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          _buildHeader(context),
-          Expanded(
-            child: ListView.builder(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              itemCount: _customers.length,
-              itemBuilder: (_, i) => _CustomerCard(
-                customer: _customers[i],
-                onToggleBlock: () => _toggleBlock(_customers[i]),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: AdminService.instance.getCustomersStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final customers = snapshot.data ?? [];
+          
+          return Column(
+            children: [
+              _buildHeader(context, customers.length),
+              Expanded(
+                child: customers.isEmpty 
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                        itemCount: customers.length,
+                        itemBuilder: (_, i) {
+                          final c = customers[i];
+                          return _CustomerCard(customer: c);
+                        },
+                      ),
               ),
-            ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.people_outline_rounded, size: 64, color: AppColors.dividerGray.withValues(alpha: 0.5)),
+          const SizedBox(height: 16),
+          Text(
+            'No customers found',
+            style: GoogleFonts.poppins(color: AppColors.textSecondary, fontWeight: FontWeight.w500),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, int count) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -81,7 +88,7 @@ class _ManageCustomersScreenState extends State<ManageCustomersScreen> {
               color: AppColors.whiteSurface.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text('${_customers.length} users',
+            child: Text('$count users',
                 style: GoogleFonts.poppins(color: AppColors.whiteSurface, fontSize: 12)),
           ),
         ],
@@ -91,13 +98,19 @@ class _ManageCustomersScreenState extends State<ManageCustomersScreen> {
 }
 
 class _CustomerCard extends StatelessWidget {
-  final AdminCustomer customer;
-  final VoidCallback onToggleBlock;
+  final Map<String, dynamic> customer;
 
-  const _CustomerCard({required this.customer, required this.onToggleBlock});
+  const _CustomerCard({required this.customer});
 
   @override
   Widget build(BuildContext context) {
+    final name = customer['name'] ?? 'User';
+    final email = customer['email'] ?? 'No email';
+    final phone = customer['phone'] ?? 'No phone';
+    final isBlocked = customer['isBlocked'] ?? false;
+    final uid = customer['uid'] ?? '';
+    final initials = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -110,14 +123,13 @@ class _CustomerCard extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundColor:
-                customer.isBlocked ? const Color(0xFFFFEBEE) : AppColors.lightPinkBg,
+            backgroundColor: isBlocked ? const Color(0xFFFFEBEE) : AppColors.lightPinkBg,
             child: Text(
-              customer.initials,
+              initials,
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
-                color: customer.isBlocked ? AppColors.primaryRed : AppColors.primaryRed,
+                color: AppColors.primaryRed,
               ),
             ),
           ),
@@ -128,13 +140,13 @@ class _CustomerCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(customer.name,
+                    Text(name,
                         style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                             color: AppColors.textPrimary)),
                     const SizedBox(width: 8),
-                    if (customer.isBlocked)
+                    if (isBlocked)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
@@ -150,21 +162,20 @@ class _CustomerCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 2),
-                Text(customer.email,
+                Text(email,
                     style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary)),
-                Text(customer.phone,
+                Text(phone,
                     style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary)),
               ],
             ),
           ),
           TextButton(
-            onPressed: onToggleBlock,
+            onPressed: () => AdminService.instance.toggleUserBlock(uid, isBlocked),
             style: TextButton.styleFrom(
-              foregroundColor:
-                  customer.isBlocked ? AppColors.successGreen : AppColors.primaryRed,
+              foregroundColor: isBlocked ? AppColors.successGreen : AppColors.primaryRed,
             ),
             child: Text(
-              customer.isBlocked ? 'Unblock' : 'Block',
+              isBlocked ? 'Unblock' : 'Block',
               style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 12),
             ),
           ),

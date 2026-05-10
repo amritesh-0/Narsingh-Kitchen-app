@@ -2,49 +2,61 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../data/admin_dummy_data.dart';
+import '../../../core/services/admin_service.dart';
 
-class ManageSubscriptionsScreen extends StatefulWidget {
+class ManageSubscriptionsScreen extends StatelessWidget {
   const ManageSubscriptionsScreen({super.key});
-
-  @override
-  State<ManageSubscriptionsScreen> createState() => _ManageSubscriptionsScreenState();
-}
-
-class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
-  final _subs = AdminDummyData.subscriptions;
-
-  void _cancel(AdminSubscription s) {
-    setState(() => s.isActive = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Subscription for ${s.customerName} cancelled', style: GoogleFonts.poppins()),
-        backgroundColor: AppColors.primaryRed,
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: AdminService.instance.getSubscriptionsStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final subs = snapshot.data ?? [];
+          final activeCount = subs.where((s) => s['isActive'] == true).length;
+
+          return Column(
+            children: [
+              _header(context, activeCount),
+              Expanded(
+                child: subs.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                        itemCount: subs.length,
+                        itemBuilder: (_, i) => _SubCard(sub: subs[i]),
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _header(context),
-          Expanded(
-            child: ListView.builder(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              itemCount: _subs.length,
-              itemBuilder: (_, i) => _SubCard(sub: _subs[i], onCancel: () => _cancel(_subs[i])),
-            ),
+          Icon(Icons.subscriptions_outlined, size: 64, color: AppColors.dividerGray.withValues(alpha: 0.5)),
+          const SizedBox(height: 16),
+          Text(
+            'No subscriptions found',
+            style: GoogleFonts.poppins(color: AppColors.textSecondary, fontWeight: FontWeight.w500),
           ),
         ],
       ),
     );
   }
 
-  Widget _header(BuildContext context) {
+  Widget _header(BuildContext context, int activeCount) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -73,7 +85,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              '${_subs.where((s) => s.isActive).length} active',
+              '$activeCount active',
               style: GoogleFonts.poppins(color: AppColors.whiteSurface, fontSize: 12),
             ),
           ),
@@ -84,13 +96,19 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
 }
 
 class _SubCard extends StatelessWidget {
-  final AdminSubscription sub;
-  final VoidCallback onCancel;
+  final Map<String, dynamic> sub;
 
-  const _SubCard({required this.sub, required this.onCancel});
+  const _SubCard({required this.sub});
 
   @override
   Widget build(BuildContext context) {
+    final customerName = sub['userName'] ?? 'Unknown Customer';
+    final plan = sub['planTitle'] ?? 'Standard Plan';
+    final isActive = sub['isActive'] ?? false;
+    final startDate = sub['startDate'] ?? 'N/A';
+    final endDate = sub['endDate'] ?? 'N/A';
+    final id = sub['id'] ?? '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -105,23 +123,23 @@ class _SubCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(sub.customerName,
+              Text(customerName,
                   style: GoogleFonts.poppins(
                       fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textPrimary)),
-              _statusBadge(sub.isActive),
+              _statusBadge(isActive),
             ],
           ),
           const SizedBox(height: 8),
-          _row(Icons.card_membership_rounded, 'Plan: ${sub.plan}', Colors.blue),
-          _row(Icons.calendar_today_rounded, 'Start: ${sub.startDate}', AppColors.textSecondary),
-          _row(Icons.event_rounded, 'End: ${sub.endDate}', AppColors.textSecondary),
-          if (sub.isActive) ...[
+          _row(Icons.card_membership_rounded, 'Plan: $plan', Colors.blue),
+          _row(Icons.calendar_today_rounded, 'Start: $startDate', AppColors.textSecondary),
+          _row(Icons.event_rounded, 'End: $endDate', AppColors.textSecondary),
+          if (isActive) ...[
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               height: 40,
               child: OutlinedButton(
-                onPressed: onCancel,
+                onPressed: () => AdminService.instance.cancelSubscription(id),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primaryRed,
                   side: const BorderSide(color: AppColors.primaryRed),

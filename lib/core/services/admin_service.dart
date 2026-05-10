@@ -104,4 +104,71 @@ class AdminService {
       'status': status.name,
     });
   }
+
+  // ── Customer Management ──────────────────────────────────────────────────
+  Stream<List<Map<String, dynamic>>> getCustomersStream() {
+    return _firestore
+        .collection('users')
+        .where('role', isEqualTo: 'customer')
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) => doc.data()).toList());
+  }
+
+  Future<void> toggleUserBlock(String uid, bool currentStatus) async {
+    await _firestore.collection('users').doc(uid).update({
+      'isBlocked': !currentStatus,
+    });
+  }
+
+  // ── Subscription Management ──────────────────────────────────────────────
+  Stream<List<Map<String, dynamic>>> getSubscriptionsStream() {
+    return _firestore
+        .collection('user_subscriptions')
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList());
+  }
+
+  Future<void> cancelSubscription(String subId) async {
+    await _firestore.collection('user_subscriptions').doc(subId).update({
+      'isActive': false,
+    });
+  }
+
+  // ── Promo Management ─────────────────────────────────────────────────────
+  Stream<List<Map<String, dynamic>>> getPromosStream() {
+    return _firestore
+        .collection('promos')
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList());
+  }
+
+  Future<void> addPromo(Map<String, dynamic> promoData) async {
+    await _firestore.collection('promos').add(promoData);
+  }
+
+  Future<void> deletePromo(String promoId) async {
+    await _firestore.collection('promos').doc(promoId).delete();
+  }
+
+  Future<void> togglePromo(String promoId, bool currentStatus) async {
+    await _firestore.collection('promos').doc(promoId).update({
+      'isActive': !currentStatus,
+    });
+  }
+
+  // ── Notification Management ─────────────────────────────────────────────
+  Stream<List<Map<String, dynamic>>> getSentNotificationsStream() {
+    return _firestore
+        .collection('admin_notifications')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs.map((doc) => doc.data()).toList());
+  }
+
+  Future<void> sendNotification(Map<String, dynamic> notificationData) async {
+    await _firestore.collection('admin_notifications').add({
+      ...notificationData,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
 }

@@ -8,59 +8,43 @@ import '../../../core/services/auth_service.dart';
 class AdminProfileScreen extends StatelessWidget {
   const AdminProfileScreen({super.key});
 
-  Future<void> _logout(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Logout', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
-        content: Text('Are you sure you want to logout?',
-            style: GoogleFonts.poppins(color: AppColors.textSecondary)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: GoogleFonts.poppins(color: AppColors.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryRed,
-              foregroundColor: AppColors.whiteSurface,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text('Logout', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && context.mounted) {
-      await AuthService.instance.logout();
-      if (context.mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.signIn, (_) => false);
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final user = AuthService.instance.currentUser;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Column(
-          children: [
-            _buildHeader(context),
-            const SizedBox(height: 16),
-            _buildSettingsSection(context),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
+      body: user == null
+          ? const Center(child: CircularProgressIndicator())
+          : StreamBuilder<Map<String, dynamic>?>(
+              stream: AuthService.instance.getUserDetailsStream(user.uid),
+              builder: (context, snapshot) {
+                final userData = snapshot.data;
+                final name = userData?['name'] ?? 'Admin';
+                final email = user.email ?? 'No email';
+                final phone = userData?['phone'] ?? 'Add phone number';
+
+                return CustomScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(child: _buildHeader(context, name, email)),
+                    SliverPadding(
+                      padding: const EdgeInsets.all(16),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          _buildSettingsSection(context, user.uid, name, phone),
+                          const SizedBox(height: 24),
+                        ]),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    final user = AuthService.instance.currentUser;
+  Widget _buildHeader(BuildContext context, String name, String email) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -76,95 +60,75 @@ class AdminProfileScreen extends StatelessWidget {
         right: 20,
         bottom: 32,
       ),
-      child: FutureBuilder<Map<String, dynamic>?>(
-        future: user != null ? AuthService.instance.getUserDetails(user.uid) : null,
-        builder: (context, snapshot) {
-          final name = snapshot.data?['name'] ?? 'Admin';
-          return Column(
-            children: [
-              Container(
-                width: 86,
-                height: 86,
-                decoration: BoxDecoration(
-                  color: AppColors.whiteSurface,
-                  shape: BoxShape.circle,
-                  boxShadow: AppColors.cardShadow,
-                ),
-                alignment: Alignment.center,
-                child: const Text('👨‍💼', style: TextStyle(fontSize: 44)),
-              ),
-              const SizedBox(height: 12),
-              Text(name,
-                  style: GoogleFonts.poppins(
-                      fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.whiteSurface)),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.whiteSurface.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text('Super Admin',
-                    style: GoogleFonts.poppins(
-                        fontSize: 12, color: AppColors.whiteSurface, fontWeight: FontWeight.w500)),
-              ),
-            ],
-          );
-        },
+      child: Column(
+        children: [
+          Container(
+            width: 86,
+            height: 86,
+            decoration: BoxDecoration(
+              color: AppColors.whiteSurface,
+              shape: BoxShape.circle,
+              boxShadow: AppColors.cardShadow,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
+            ),
+            alignment: Alignment.center,
+            child: const Text('👨‍💼', style: TextStyle(fontSize: 44)),
+          ),
+          const SizedBox(height: 12),
+          Text(name,
+              style: GoogleFonts.poppins(
+                  fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.whiteSurface)),
+          Text(email,
+              style: GoogleFonts.poppins(
+                  fontSize: 13, color: AppColors.whiteSurface.withValues(alpha: 0.8))),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.whiteSurface.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text('Super Admin',
+                style: GoogleFonts.poppins(
+                    fontSize: 12, color: AppColors.whiteSurface, fontWeight: FontWeight.w600)),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildSettingsSection(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          _section('Account', [
-            _tile(context, Icons.edit_rounded, 'Edit Profile', Colors.blue, () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Edit Profile — coming soon', style: GoogleFonts.poppins()),
-                  duration: const Duration(seconds: 1),
-                ),
-              );
-            }),
-            _tile(context, Icons.lock_outline_rounded, 'Change Password', Colors.orange, () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Change Password — coming soon', style: GoogleFonts.poppins()),
-                  duration: const Duration(seconds: 1),
-                ),
-              );
-            }),
-          ]),
-          const SizedBox(height: 12),
-          _section('Admin Tools', [
-            _tile(context, Icons.people_rounded, 'Manage Customers', AppColors.primaryOrange,
-                () => Navigator.pushNamed(context, AppRoutes.manageCustomers)),
-            _tile(context, Icons.subscriptions_rounded, 'Subscriptions', Colors.blue,
-                () => Navigator.pushNamed(context, AppRoutes.manageSubscriptions)),
-            _tile(context, Icons.local_offer_rounded, 'Promo Codes', AppColors.successGreen,
-                () => Navigator.pushNamed(context, AppRoutes.managePromos)),
-            _tile(context, Icons.notifications_rounded, 'Notifications', Colors.purple,
-                () => Navigator.pushNamed(context, AppRoutes.manageNotifications)),
-          ]),
-          const SizedBox(height: 12),
-          _section('App', [
-            _tile(context, Icons.settings_rounded, 'App Settings', Colors.grey, () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('App Settings — coming soon', style: GoogleFonts.poppins()),
-                  duration: const Duration(seconds: 1),
-                ),
-              );
-            }),
-            _tile(context, Icons.logout_rounded, 'Logout', AppColors.primaryRed,
-                () => _logout(context),
-                trailing: const SizedBox.shrink()),
-          ]),
-        ],
-      ),
+  Widget _buildSettingsSection(BuildContext context, String uid, String name, String phone) {
+    return Column(
+      children: [
+        _section('Account', [
+          _tile(context, Icons.edit_rounded, 'Edit Profile', Colors.blue, 
+              () => _showEditProfile(context, uid, name, phone)),
+          _tile(context, Icons.lock_outline_rounded, 'Change Password', Colors.orange, () {
+            AuthService.instance.resetPassword(AuthService.instance.currentUser?.email ?? '');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Password reset email sent!', style: GoogleFonts.poppins())),
+            );
+          }),
+        ]),
+        const SizedBox(height: 12),
+        _section('Admin Tools', [
+          _tile(context, Icons.people_rounded, 'Manage Customers', AppColors.primaryOrange,
+              () => Navigator.pushNamed(context, AppRoutes.manageCustomers)),
+          _tile(context, Icons.subscriptions_rounded, 'Subscriptions', Colors.blue,
+              () => Navigator.pushNamed(context, AppRoutes.manageSubscriptions)),
+          _tile(context, Icons.local_offer_rounded, 'Promo Codes', AppColors.successGreen,
+              () => Navigator.pushNamed(context, AppRoutes.managePromos)),
+          _tile(context, Icons.notifications_rounded, 'Notifications', Colors.purple,
+              () => Navigator.pushNamed(context, AppRoutes.manageNotifications)),
+        ]),
+        const SizedBox(height: 12),
+        _section('App', [
+          _tile(context, Icons.settings_rounded, 'App Settings', Colors.grey, () {}),
+          _tile(context, Icons.logout_rounded, 'Logout', AppColors.primaryRed,
+              () => _showLogoutDialog(context),
+              trailing: const SizedBox.shrink()),
+        ]),
+      ],
     );
   }
 
@@ -175,6 +139,7 @@ class AdminProfileScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: AppColors.cardShadow,
       ),
+      margin: const EdgeInsets.only(bottom: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -193,14 +158,7 @@ class AdminProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _tile(
-    BuildContext context,
-    IconData icon,
-    String label,
-    Color color,
-    VoidCallback onTap, {
-    Widget? trailing,
-  }) {
+  Widget _tile(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap, {Widget? trailing}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -211,10 +169,7 @@ class AdminProfileScreen extends StatelessWidget {
             Container(
               width: 38,
               height: 38,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
               alignment: Alignment.center,
               child: Icon(icon, color: color, size: 20),
             ),
@@ -226,10 +181,88 @@ class AdminProfileScreen extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                       color: label == 'Logout' ? AppColors.primaryRed : AppColors.textPrimary)),
             ),
-            trailing ??
-                Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 20),
+            trailing ?? Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showEditProfile(BuildContext context, String uid, String currentName, String currentPhone) {
+    final nameController = TextEditingController(text: currentName);
+    final phoneController = TextEditingController(text: currentPhone == 'Add phone number' ? '' : currentPhone);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, top: 24, left: 24, right: 24),
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Edit Admin Profile', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 24),
+            _textField(nameController, 'Name', Icons.person_outline_rounded),
+            const SizedBox(height: 16),
+            _textField(phoneController, 'Phone', Icons.phone_iphone_rounded, keyboardType: TextInputType.phone),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  await AuthService.instance.updateUserDetails(uid, {'name': nameController.text, 'phone': phoneController.text});
+                  if (context.mounted) Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryRed,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                child: Text('Save Changes', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.white)),
+              ),
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _textField(TextEditingController controller, String label, IconData icon, {TextInputType? keyboardType}) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: AppColors.primaryRed, size: 20),
+        filled: true,
+        fillColor: AppColors.lightGrayBg,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text('Logout', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
+        content: Text('Are you sure you want to logout?', style: GoogleFonts.poppins()),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel', style: GoogleFonts.poppins(color: AppColors.textSecondary))),
+          TextButton(
+            onPressed: () async {
+              await AuthService.instance.logout();
+              if (context.mounted) Navigator.pushNamedAndRemoveUntil(context, AppRoutes.signIn, (route) => false);
+            },
+            child: Text('Logout', style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.w700)),
+          ),
+        ],
       ),
     );
   }

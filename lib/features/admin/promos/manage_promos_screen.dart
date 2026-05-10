@@ -2,35 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../data/admin_dummy_data.dart';
+import '../../../core/services/admin_service.dart';
 
-class ManagePromosScreen extends StatefulWidget {
+class ManagePromosScreen extends StatelessWidget {
   const ManagePromosScreen({super.key});
 
-  @override
-  State<ManagePromosScreen> createState() => _ManagePromosScreenState();
-}
-
-class _ManagePromosScreenState extends State<ManagePromosScreen> {
-  final _promos = AdminDummyData.promos;
-
-  void _delete(PromoCode p) {
-    setState(() => _promos.remove(p));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Promo ${p.code} deleted', style: GoogleFonts.poppins()),
-        backgroundColor: AppColors.primaryRed,
-      ),
-    );
-  }
-
-  void _showAddDialog() {
+  void _showAddDialog(BuildContext context) {
     final codeCtrl = TextEditingController();
     final discountCtrl = TextEditingController();
     final expiryCtrl = TextEditingController();
+    
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text('New Promo Code',
             style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
@@ -40,8 +24,7 @@ class _ManagePromosScreenState extends State<ManagePromosScreen> {
             children: [
               _dialogField(codeCtrl, 'Code', 'SAVE10'),
               const SizedBox(height: 10),
-              _dialogField(discountCtrl, 'Discount %', '10',
-                  type: TextInputType.number),
+              _dialogField(discountCtrl, 'Discount %', '10', type: TextInputType.number),
               const SizedBox(height: 10),
               _dialogField(expiryCtrl, 'Expiry Date', '31 Dec 2026'),
             ],
@@ -49,21 +32,20 @@ class _ManagePromosScreenState extends State<ManagePromosScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel', style: GoogleFonts.poppins(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               if (codeCtrl.text.isNotEmpty && discountCtrl.text.isNotEmpty) {
-                setState(() {
-                  _promos.add(PromoCode(
-                    id: 'PRO-${_promos.length + 1}',
-                    code: codeCtrl.text.toUpperCase(),
-                    discountPercent: int.tryParse(discountCtrl.text) ?? 5,
-                    expiry: expiryCtrl.text.isEmpty ? 'N/A' : expiryCtrl.text,
-                  ));
+                await AdminService.instance.addPromo({
+                  'code': codeCtrl.text.toUpperCase(),
+                  'discountPercent': int.tryParse(discountCtrl.text) ?? 5,
+                  'expiry': expiryCtrl.text.isEmpty ? 'N/A' : expiryCtrl.text,
+                  'isActive': true,
+                  'createdAt': DateTime.now().toIso8601String(),
                 });
-                Navigator.pop(context);
+                if (ctx.mounted) Navigator.pop(ctx);
               }
             },
             style: ElevatedButton.styleFrom(
@@ -78,8 +60,7 @@ class _ManagePromosScreenState extends State<ManagePromosScreen> {
     );
   }
 
-  Widget _dialogField(TextEditingController ctrl, String label, String hint,
-      {TextInputType type = TextInputType.text}) {
+  Widget _dialogField(TextEditingController ctrl, String label, String hint, {TextInputType type = TextInputType.text}) {
     return TextField(
       controller: ctrl,
       keyboardType: type,
@@ -97,33 +78,53 @@ class _ManagePromosScreenState extends State<ManagePromosScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          _header(context),
-          Expanded(
-            child: _promos.isEmpty
-                ? Center(
-                    child: Text('No promo codes yet.',
-                        style: GoogleFonts.poppins(color: AppColors.textSecondary)))
-                : ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-                    itemCount: _promos.length,
-                    itemBuilder: (_, i) => _PromoCard(
-                      promo: _promos[i],
-                      onDelete: () => _delete(_promos[i]),
-                      onToggle: (v) => setState(() => _promos[i].isActive = v),
-                    ),
-                  ),
-          ),
-        ],
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: AdminService.instance.getPromosStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final promos = snapshot.data ?? [];
+
+          return Column(
+            children: [
+              _header(context),
+              Expanded(
+                child: promos.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+                        itemCount: promos.length,
+                        itemBuilder: (_, i) => _PromoCard(promo: promos[i]),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddDialog,
+        onPressed: () => _showAddDialog(context),
         backgroundColor: AppColors.primaryRed,
         foregroundColor: AppColors.whiteSurface,
         icon: const Icon(Icons.add_rounded),
         label: Text('New Promo', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.local_offer_outlined, size: 64, color: AppColors.dividerGray.withValues(alpha: 0.5)),
+          const SizedBox(height: 16),
+          Text(
+            'No promo codes yet',
+            style: GoogleFonts.poppins(color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+          ),
+        ],
       ),
     );
   }
@@ -158,14 +159,18 @@ class _ManagePromosScreenState extends State<ManagePromosScreen> {
 }
 
 class _PromoCard extends StatelessWidget {
-  final PromoCode promo;
-  final VoidCallback onDelete;
-  final ValueChanged<bool> onToggle;
+  final Map<String, dynamic> promo;
 
-  const _PromoCard({required this.promo, required this.onDelete, required this.onToggle});
+  const _PromoCard({required this.promo});
 
   @override
   Widget build(BuildContext context) {
+    final code = promo['code'] ?? 'CODE';
+    final discount = promo['discountPercent'] ?? 0;
+    final expiry = promo['expiry'] ?? 'N/A';
+    final isActive = promo['isActive'] ?? false;
+    final id = promo['id'] ?? '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -173,7 +178,7 @@ class _PromoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: AppColors.cardShadow,
         border: Border.all(
-          color: promo.isActive ? const Color(0xFFFFCDD2) : AppColors.dividerGray,
+          color: isActive ? const Color(0xFFFFCDD2) : AppColors.dividerGray,
         ),
       ),
       padding: const EdgeInsets.all(16),
@@ -182,15 +187,15 @@ class _PromoCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: promo.isActive ? AppColors.lightPinkBg : AppColors.lightGrayBg,
+              color: isActive ? AppColors.lightPinkBg : AppColors.lightGrayBg,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              promo.code,
+              code,
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w800,
                 fontSize: 14,
-                color: promo.isActive ? AppColors.primaryRed : AppColors.textSecondary,
+                color: isActive ? AppColors.primaryRed : AppColors.textSecondary,
                 letterSpacing: 1,
               ),
             ),
@@ -200,21 +205,21 @@ class _PromoCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${promo.discountPercent}% off',
+                Text('$discount% off',
                     style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.textPrimary)),
-                Text('Expires: ${promo.expiry}',
+                Text('Expires: $expiry',
                     style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textSecondary)),
               ],
             ),
           ),
           Switch.adaptive(
-            value: promo.isActive,
-            onChanged: onToggle,
+            value: isActive,
+            onChanged: (v) => AdminService.instance.togglePromo(id, isActive),
             activeTrackColor: AppColors.successGreen,
           ),
           InkWell(
-            onTap: onDelete,
+            onTap: () => AdminService.instance.deletePromo(id),
             borderRadius: BorderRadius.circular(8),
             child: const Padding(
               padding: EdgeInsets.all(4),
