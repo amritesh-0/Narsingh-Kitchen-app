@@ -2,8 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'core/constants/app_routes.dart';
+import 'core/constants/app_strings.dart';
 import 'core/theme/app_theme.dart';
-import 'data/cart_service.dart';
 import 'data/dummy_data.dart';
 import 'features/admin/admin_bottom_nav.dart';
 import 'features/admin/analytics/analytics_screen.dart';
@@ -30,6 +30,7 @@ import 'features/fast_food/fast_food_screen.dart';
 import 'features/home/bottom_nav_screen.dart';
 import 'features/home/home_screen.dart';
 import 'features/orders/orders_screen.dart';
+import 'features/orders/order_detail_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/profile/addresses_screen.dart';
 import 'features/profile/payment_methods_screen.dart';
@@ -47,18 +48,18 @@ import 'features/tiffin/tiffin_detail_screen.dart';
 import 'features/tiffin/tiffin_screen.dart';
 import 'models/product_model.dart';
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   try {
     await Firebase.initializeApp();
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
-    debugPrint('Make sure you have added google-services.json / GoogleService-Info.plist');
+    debugPrint(
+      'Make sure you have added google-services.json / GoogleService-Info.plist',
+    );
   }
-  
-  
+
   runApp(const NarsinghKitchenApp());
 }
 
@@ -68,7 +69,7 @@ class NarsinghKitchenApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'FoodieExpress',
+      title: AppStrings.appDisplayName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       initialRoute: AppRoutes.splash,
@@ -80,7 +81,7 @@ class NarsinghKitchenApp extends StatelessWidget {
         AppRoutes.signUp: (_) => const SignUpScreen(),
         AppRoutes.otp: (_) => const OtpScreen(),
         AppRoutes.home: (_) => const HomeScreen(),
-        AppRoutes.bottomNav: (_) => const BottomNavScreen(),
+        AppRoutes.bottomNav: _buildBottomNav,
         AppRoutes.fastFood: (_) => const FastFoodScreen(),
         AppRoutes.tiffin: (_) => const TiffinScreen(),
         AppRoutes.spices: (_) => const SpicesScreen(),
@@ -94,6 +95,7 @@ class NarsinghKitchenApp extends StatelessWidget {
         AppRoutes.checkout: (_) => const CheckoutScreen(),
         AppRoutes.orderSuccess: _buildOrderSuccess,
         AppRoutes.myOrders: (_) => const OrdersScreen(),
+        AppRoutes.userOrderDetail: _buildUserOrderDetail,
         AppRoutes.userProfile: (_) => const ProfileScreen(),
         AppRoutes.savedItems: (_) => const SavedScreen(),
         AppRoutes.savedAddresses: (_) => const AddressesScreen(),
@@ -132,6 +134,12 @@ class NarsinghKitchenApp extends StatelessWidget {
     return ProductDetailScreen(product: product);
   }
 
+  static Widget _buildBottomNav(BuildContext context) {
+    final arg = ModalRoute.of(context)?.settings.arguments;
+    final initialIndex = arg is int ? arg : 0;
+    return BottomNavScreen(initialIndex: initialIndex);
+  }
+
   static Widget _buildTiffinDetail(BuildContext context) {
     final arg = ModalRoute.of(context)?.settings.arguments;
     if (arg is ProductModel) {
@@ -162,6 +170,12 @@ class NarsinghKitchenApp extends StatelessWidget {
     final arg = ModalRoute.of(context)?.settings.arguments;
     final orderId = arg is String ? arg : 'FE-000000';
     return OrderSuccessScreen(orderId: orderId);
+  }
+
+  static Widget _buildUserOrderDetail(BuildContext context) {
+    final arg = ModalRoute.of(context)?.settings.arguments;
+    final id = arg is String ? arg : '';
+    return UserOrderDetailScreen(orderId: id);
   }
 
   // ── Admin route builders ───────────────────────────────────────────────────

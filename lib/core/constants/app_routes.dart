@@ -25,6 +25,7 @@ abstract final class AppRoutes {
   static const String checkout = '/checkout';
   static const String orderSuccess = '/order-success';
   static const String myOrders = '/my-orders';
+  static const String userOrderDetail = '/user-order-detail';
   static const String userProfile = '/user-profile';
   static const String savedItems = '/saved-items';
   static const String savedAddresses = '/saved-addresses';

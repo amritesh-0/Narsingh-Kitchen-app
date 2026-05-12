@@ -24,10 +24,10 @@ class AuthService {
         email: email,
         password: password,
       );
-      
+
       // Fetch and save role
       await _syncUserRole(credential.user?.uid);
-      
+
       return credential;
     } catch (e) {
       rethrow;
@@ -35,7 +35,12 @@ class AuthService {
   }
 
   // Sign Up
-  Future<UserCredential> signUp(String email, String password, String name, {String role = 'customer'}) async {
+  Future<UserCredential> signUp(
+    String email,
+    String password,
+    String name, {
+    String role = 'customer',
+  }) async {
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -61,7 +66,7 @@ class AuthService {
   // Sync role from Firestore to local storage
   Future<void> _syncUserRole(String? uid) async {
     if (uid == null) return;
-    
+
     final doc = await _firestore.collection('users').doc(uid).get();
     if (doc.exists) {
       final role = doc.data()?['role'] as String? ?? 'customer';
@@ -91,7 +96,11 @@ class AuthService {
   }
 
   Stream<Map<String, dynamic>?> getUserDetailsStream(String uid) {
-    return _firestore.collection('users').doc(uid).snapshots().map((doc) => doc.data());
+    return _firestore
+        .collection('users')
+        .doc(uid)
+        .snapshots()
+        .map((doc) => doc.data());
   }
 
   Future<void> updateUserDetails(String uid, Map<String, dynamic> data) async {
@@ -105,28 +114,65 @@ class AuthService {
         .doc(uid)
         .collection('addresses')
         .snapshots()
-        .map((snap) => snap.docs
-            .map((doc) => AddressModel.fromFirestore(doc.data(), doc.id))
-            .toList());
+        .map(
+          (snap) => snap.docs
+              .map((doc) => AddressModel.fromFirestore(doc.data(), doc.id))
+              .toList(),
+        );
+  }
+
+  Stream<AddressModel?> getDefaultAddressStream(String uid) {
+    return getAddressesStream(uid).map((addresses) {
+      if (addresses.isEmpty) return null;
+      return addresses
+          .where((a) => a.isDefault)
+          .cast<AddressModel?>()
+          .firstWhere((a) => a != null, orElse: () => addresses.first);
+    });
+  }
+
+  Future<AddressModel?> getDefaultAddress(String uid) async {
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('addresses')
+        .get();
+    final addresses = snapshot.docs
+        .map((doc) => AddressModel.fromFirestore(doc.data(), doc.id))
+        .toList();
+    if (addresses.isEmpty) return null;
+    return addresses
+        .where((a) => a.isDefault)
+        .cast<AddressModel?>()
+        .firstWhere((a) => a != null, orElse: () => addresses.first);
   }
 
   Future<void> addAddress(String uid, AddressModel address) async {
-    await _firestore.collection('users').doc(uid).collection('addresses').add(address.toFirestore());
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('addresses')
+        .add(address.toFirestore());
   }
 
   Future<void> deleteAddress(String uid, String addressId) async {
-    await _firestore.collection('users').doc(uid).collection('addresses').doc(addressId).delete();
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('addresses')
+        .doc(addressId)
+        .delete();
   }
 
   Future<void> setDefaultAddress(String uid, String addressId) async {
     final batch = _firestore.batch();
     final col = _firestore.collection('users').doc(uid).collection('addresses');
     final all = await col.get();
-    
+
     for (var doc in all.docs) {
       batch.update(doc.reference, {'isDefault': doc.id == addressId});
     }
-    
+
     await batch.commit();
   }
 
