@@ -1,4 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
+import '../../data/dummy_data.dart';
 import '../../models/product_model.dart';
 import '../../models/category_model.dart';
 
@@ -8,13 +11,46 @@ class ProductService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  List<CategoryModel> get _fallbackCategories => [
+    CategoryModel(
+      id: 'fallback-fast-food',
+      title: 'Fast Food',
+      image: '🍔',
+      color: const Color(0xFFE53935),
+    ),
+    CategoryModel(
+      id: 'fallback-tiffin',
+      title: 'Tiffin',
+      image: '🍱',
+      color: const Color(0xFFFF9800),
+    ),
+    CategoryModel(
+      id: 'fallback-spices',
+      title: 'Spices',
+      image: '🌶️',
+      color: const Color(0xFF795548),
+    ),
+  ];
+
+  List<ProductModel> get _fallbackPopularProducts => [
+    DummyData.fastFoodItems.first,
+    DummyData.todayTiffinMeal,
+  ];
+
   // ── Categories ──────────────────────────────────────────────────────────
   Stream<List<CategoryModel>> getCategories() {
     return _firestore.collection('categories').snapshots().map((snapshot) {
-      return snapshot.docs
+      final categories = snapshot.docs
           .map((doc) => CategoryModel.fromFirestore(doc.data(), doc.id))
           .toList();
+      return categories.isEmpty ? _fallbackCategories : categories;
     });
+  }
+
+  Stream<List<CategoryModel>> getCategoriesWithFallback() {
+    return getCategories().map(
+      (categories) => categories.isEmpty ? _fallbackCategories : categories,
+    );
   }
 
   // ── Products ─────────────────────────────────────────────────────────────
@@ -24,10 +60,11 @@ class ProductService {
         .where('isPopular', isEqualTo: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => ProductModel.fromFirestore(doc.data(), doc.id))
-          .toList();
-    });
+          final products = snapshot.docs
+              .map((doc) => ProductModel.fromFirestore(doc.data(), doc.id))
+              .toList();
+          return products.isEmpty ? _fallbackPopularProducts : products;
+        });
   }
 
   Stream<List<ProductModel>> getProducts(ProductKind kind) {
@@ -36,10 +73,18 @@ class ProductService {
         .where('kind', isEqualTo: kind.name)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => ProductModel.fromFirestore(doc.data(), doc.id))
-          .toList();
-    });
+          final products = snapshot.docs
+              .map((doc) => ProductModel.fromFirestore(doc.data(), doc.id))
+              .toList();
+          return products.isEmpty ? _fallbackProductsForKind(kind) : products;
+        });
+  }
+
+  Stream<List<ProductModel>> getProductsWithFallback(ProductKind kind) {
+    return getProducts(kind).map(
+      (products) =>
+          products.isEmpty ? _fallbackProductsForKind(kind) : products,
+    );
   }
 
   // Helper to add dummy data for testing (optional)
@@ -98,5 +143,16 @@ class ProductService {
 
   Future<void> deleteProduct(String productId) async {
     await _firestore.collection('products').doc(productId).delete();
+  }
+
+  List<ProductModel> _fallbackProductsForKind(ProductKind kind) {
+    switch (kind) {
+      case ProductKind.fastFood:
+        return DummyData.fastFoodItems;
+      case ProductKind.tiffinMeal:
+        return [DummyData.todayTiffinMeal];
+      case ProductKind.spice:
+        return DummyData.spiceItems;
+    }
   }
 }

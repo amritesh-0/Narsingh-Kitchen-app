@@ -18,9 +18,23 @@ class OrderService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => OrderModel.fromFirestore(doc.data(), doc.id))
-          .toList();
+          return snapshot.docs
+              .map((doc) => OrderModel.fromFirestore(doc.data(), doc.id))
+              .toList();
+        });
+  }
+
+  Stream<OrderModel?> getOrderById(String orderId) {
+    if (orderId.isEmpty) return Stream.value(null);
+
+    final user = AuthService.instance.currentUser;
+    if (user == null) return Stream.value(null);
+
+    return _firestore.collection('orders').doc(orderId).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      final order = OrderModel.fromFirestore(doc.data()!, doc.id);
+      if (order.userId != user.uid) return null;
+      return order;
     });
   }
 

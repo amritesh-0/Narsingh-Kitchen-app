@@ -9,17 +9,27 @@ class AdminService {
 
   // ── Stats ───────────────────────────────────────────────────────────────
   Stream<Map<String, dynamic>> getDashboardStats() {
-    return _firestore.collection('orders').snapshots().asyncMap((snapshot) async {
+    return _firestore.collection('orders').snapshots().asyncMap((
+      snapshot,
+    ) async {
       double revenue = 0;
       int pending = 0;
       int delivered = 0;
-      
+
       // Weekly orders data map: day name -> count
       final weeklyMap = <String, int>{};
       final now = DateTime.now();
       for (int i = 0; i < 7; i++) {
         final day = now.subtract(Duration(days: i));
-        final dayName = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day.weekday - 1];
+        final dayName = [
+          'Mon',
+          'Tue',
+          'Wed',
+          'Thu',
+          'Fri',
+          'Sat',
+          'Sun',
+        ][day.weekday - 1];
         weeklyMap[dayName] = 0;
       }
 
@@ -30,7 +40,8 @@ class AdminService {
         final data = doc.data();
         final status = data['status'] ?? 'pending';
         final amount = (data['totalAmount'] ?? 0.0).toDouble();
-        final createdAt = (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+        final createdAt =
+            (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
 
         if (status == 'delivered') {
           revenue += amount;
@@ -41,7 +52,15 @@ class AdminService {
 
         // Weekly logic (last 7 days)
         if (now.difference(createdAt).inDays < 7) {
-          final dayName = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][createdAt.weekday - 1];
+          final dayName = [
+            'Mon',
+            'Tue',
+            'Wed',
+            'Thu',
+            'Fri',
+            'Sat',
+            'Sun',
+          ][createdAt.weekday - 1];
           if (weeklyMap.containsKey(dayName)) {
             weeklyMap[dayName] = (weeklyMap[dayName] ?? 0) + 1;
           }
@@ -68,7 +87,9 @@ class AdminService {
           .toList();
 
       final topProducts = productMap.values.toList();
-      topProducts.sort((a, b) => (b['orders'] as int).compareTo(a['orders'] as int));
+      topProducts.sort(
+        (a, b) => (b['orders'] as int).compareTo(a['orders'] as int),
+      );
 
       // Customer count
       final usersSnap = await _firestore.collection('users').get();
@@ -93,15 +114,39 @@ class AdminService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => OrderModel.fromFirestore(doc.data(), doc.id))
-          .toList();
+          return snapshot.docs
+              .map((doc) => OrderModel.fromFirestore(doc.data(), doc.id))
+              .toList();
+        });
+  }
+
+  Stream<OrderModel?> getOrderById(String orderId) {
+    if (orderId.isEmpty) return Stream.value(null);
+    return _firestore.collection('orders').doc(orderId).snapshots().map((doc) {
+      if (!doc.exists || doc.data() == null) return null;
+      return OrderModel.fromFirestore(doc.data()!, doc.id);
     });
   }
 
   Future<void> updateOrderStatus(String orderId, OrderStatus status) async {
-    await _firestore.collection('orders').doc(orderId).update({
+    final docRef = _firestore.collection('orders').doc(orderId);
+    final snapshot = await docRef.get();
+    if (!snapshot.exists || snapshot.data() == null) return;
+
+    final order = OrderModel.fromFirestore(snapshot.data()!, snapshot.id);
+    final timeline = List<OrderStatusEvent>.from(order.statusTimeline);
+    final now = DateTime.now();
+
+    final event = _buildStatusEvent(status, now);
+    final alreadyRecorded = timeline.any((item) => item.status == status);
+    if (!alreadyRecorded || status == OrderStatus.cancelled) {
+      timeline.add(event);
+    }
+
+    await docRef.update({
       'status': status.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'statusTimeline': timeline.map((item) => item.toMap()).toList(),
     });
   }
 
@@ -125,7 +170,10 @@ class AdminService {
     return _firestore
         .collection('user_subscriptions')
         .snapshots()
-        .map((snap) => snap.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList());
+        .map(
+          (snap) =>
+              snap.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList(),
+        );
   }
 
   Future<void> cancelSubscription(String subId) async {
@@ -139,7 +187,10 @@ class AdminService {
     return _firestore
         .collection('promos')
         .snapshots()
-        .map((snap) => snap.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList());
+        .map(
+          (snap) =>
+              snap.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList(),
+        );
   }
 
   Future<void> addPromo(Map<String, dynamic> promoData) async {
@@ -170,5 +221,45 @@ class AdminService {
       ...notificationData,
       'createdAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  OrderStatusEvent _buildStatusEvent(OrderStatus status, DateTime time) {
+    switch (status) {
+      case OrderStatus.pending:
+        return OrderStatusEvent(
+          status: status,
+          title: 'Order placed',
+          message: 'The kitchen has accepted the order and queued it.',
+          createdAt: time,
+        );
+      case OrderStatus.preparing:
+        return OrderStatusEvent(
+          status: status,
+          title: 'Preparing now',
+          message: 'The kitchen team has started preparing the order.',
+          createdAt: time,
+        );
+      case OrderStatus.outForDelivery:
+        return OrderStatusEvent(
+          status: status,
+          title: 'Out for delivery',
+          message: 'The order has left the kitchen and is on the way.',
+          createdAt: time,
+        );
+      case OrderStatus.delivered:
+        return OrderStatusEvent(
+          status: status,
+          title: 'Delivered',
+          message: 'The order has been delivered to the customer.',
+          createdAt: time,
+        );
+      case OrderStatus.cancelled:
+        return OrderStatusEvent(
+          status: status,
+          title: 'Order cancelled',
+          message: 'The order has been cancelled by the admin team.',
+          createdAt: time,
+        );
+    }
   }
 }
