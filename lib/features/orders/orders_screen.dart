@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_routes.dart';
+import '../../core/constants/order_ui.dart';
 import '../../core/services/order_service.dart';
 import '../../models/order_model.dart';
 
@@ -14,24 +16,27 @@ class OrdersScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: embeddedInNav 
-        ? null 
-        : AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: Text(
-              'My Orders',
-              style: GoogleFonts.outfit(
-                fontWeight: FontWeight.w800,
-                fontSize: 24,
-                color: AppColors.textPrimary,
+      appBar: embeddedInNav
+          ? null
+          : AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: AppColors.textPrimary,
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+              title: Text(
+                'My Orders',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 24,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
-          ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,21 +58,30 @@ class OrdersScreen extends StatelessWidget {
                 stream: OrderService.instance.getMyOrders(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator(color: AppColors.primaryRed));
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primaryRed,
+                      ),
+                    );
                   }
-                  
+
                   final orders = snapshot.data ?? [];
-                  
+
                   if (orders.isEmpty) {
                     return _buildEmptyState();
                   }
 
                   return ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 8,
+                    ),
                     physics: const BouncingScrollPhysics(),
                     itemCount: orders.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 16),
-                    itemBuilder: (context, index) => _OrderCard(order: orders[index]),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 16),
+                    itemBuilder: (context, index) =>
+                        _OrderCard(order: orders[index]),
                   );
                 },
               ),
@@ -126,10 +140,12 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = _getStatusColor(order.status);
-    final statusText = _getStatusText(order.status);
-    final dateStr = DateFormat('MMM dd, yyyy • hh:mm a').format(order.createdAt);
-    
+    final statusColor = OrderUi.statusColor(order.status);
+    final statusText = OrderUi.statusLabel(order.status);
+    final dateStr = DateFormat(
+      'MMM dd, yyyy • hh:mm a',
+    ).format(order.createdAt);
+
     // Get first item for emoji and name summary
     final firstItem = order.items.isNotEmpty ? order.items.first : null;
     final emoji = firstItem?['emoji'] ?? '🍔';
@@ -148,7 +164,11 @@ class _OrderCard extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: () {
-              // Navigate to order detail if needed
+              Navigator.pushNamed(
+                context,
+                AppRoutes.userOrderDetail,
+                arguments: order.id,
+              );
             },
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -165,7 +185,10 @@ class _OrderCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         alignment: Alignment.center,
-                        child: Text(emoji, style: const TextStyle(fontSize: 32)),
+                        child: Text(
+                          emoji,
+                          style: const TextStyle(fontSize: 32),
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -173,7 +196,9 @@ class _OrderCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              extraItems > 0 ? '$itemName +$extraItems more' : itemName,
+                              extraItems > 0
+                                  ? '$itemName +$extraItems more'
+                                  : itemName,
                               style: GoogleFonts.outfit(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 17,
@@ -193,7 +218,10 @@ class _OrderCard extends StatelessWidget {
                             ),
                             const SizedBox(height: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: statusColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
@@ -241,7 +269,7 @@ class _OrderCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Order ID: #${order.id.substring(0, 8).toUpperCase()}',
+                        'Order ID: ${order.shortCode}',
                         style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w500,
                           fontSize: 12,
@@ -251,7 +279,9 @@ class _OrderCard extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            'Reorder',
+                            order.status == OrderStatus.delivered
+                                ? 'Reorder'
+                                : 'Track order',
                             style: GoogleFonts.outfit(
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
@@ -259,7 +289,13 @@ class _OrderCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 4),
-                          const Icon(Icons.refresh_rounded, size: 16, color: AppColors.primaryRed),
+                          Icon(
+                            order.status == OrderStatus.delivered
+                                ? Icons.refresh_rounded
+                                : Icons.arrow_forward_rounded,
+                            size: 16,
+                            color: AppColors.primaryRed,
+                          ),
                         ],
                       ),
                     ],
@@ -271,25 +307,5 @@ class _OrderCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Color _getStatusColor(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.pending: return Colors.orange;
-      case OrderStatus.preparing: return Colors.blue;
-      case OrderStatus.outForDelivery: return Colors.purple;
-      case OrderStatus.delivered: return AppColors.successGreen;
-      case OrderStatus.cancelled: return Colors.red;
-    }
-  }
-
-  String _getStatusText(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.pending: return 'Pending';
-      case OrderStatus.preparing: return 'Preparing';
-      case OrderStatus.outForDelivery: return 'Out for Delivery';
-      case OrderStatus.delivered: return 'Delivered';
-      case OrderStatus.cancelled: return 'Cancelled';
-    }
   }
 }
