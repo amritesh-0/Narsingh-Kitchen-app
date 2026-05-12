@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
+import '../../core/services/auth_service.dart';
 
 class DeliverySlotScreen extends StatefulWidget {
   const DeliverySlotScreen({super.key});
@@ -14,14 +14,32 @@ class DeliverySlotScreen extends StatefulWidget {
 class _DeliverySlotScreenState extends State<DeliverySlotScreen> {
   bool _lunch = true;
   TimeOfDay _slot = const TimeOfDay(hour: 12, minute: 30);
-  final _addressCtrl = TextEditingController(
-    text: '221B Baker Street, ${AppStrings.userLocation}',
-  );
+  final _addressCtrl = TextEditingController(text: 'Add your delivery address');
+
+  @override
+  void initState() {
+    super.initState();
+    _hydrateDefaultAddress();
+  }
 
   @override
   void dispose() {
     _addressCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _hydrateDefaultAddress() async {
+    final user = AuthService.instance.currentUser;
+    if (user == null) {
+      _addressCtrl.text = 'Sign in to use saved delivery addresses';
+      return;
+    }
+
+    final address = await AuthService.instance.getDefaultAddress(user.uid);
+    if (!mounted) return;
+    _addressCtrl.text = address?.fullAddress.isNotEmpty == true
+        ? address!.fullAddress
+        : 'Add a delivery address from profile';
   }
 
   Future<void> _pickTime() async {

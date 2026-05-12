@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
+import '../../core/widgets/cart_dock.dart';
+import '../../data/cart_service.dart';
 import '../../models/product_model.dart';
 
 class TiffinDetailScreen extends StatelessWidget {
@@ -16,6 +18,8 @@ class TiffinDetailScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: const CartDock(bottomPadding: 64),
       body: Stack(
         children: [
           CustomScrollView(
@@ -49,11 +53,13 @@ class TiffinDetailScreen extends StatelessWidget {
                             IconButton(
                               onPressed: () => Navigator.maybePop(context),
                               style: IconButton.styleFrom(
-                                backgroundColor:
-                                    AppColors.whiteSurface.withValues(alpha: 0.9),
+                                backgroundColor: AppColors.whiteSurface
+                                    .withValues(alpha: 0.9),
                               ),
-                              icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                                  size: 18),
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                size: 18,
+                              ),
                             ),
                             const Spacer(),
                             Center(
@@ -100,8 +106,11 @@ class TiffinDetailScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(Icons.star_rounded,
-                            color: AppColors.starYellow, size: 20),
+                        const Icon(
+                          Icons.star_rounded,
+                          color: AppColors.starYellow,
+                          size: 20,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           '${product.ratingLabel} rating',
@@ -220,29 +229,71 @@ class TiffinDetailScreen extends StatelessWidget {
               child: SafeArea(
                 top: false,
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  child: SizedBox(
-                    height: 54,
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pushNamed(
-                        context,
-                        AppRoutes.subscriptionPlan,
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryOrange,
-                        foregroundColor: AppColors.whiteSurface,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 54,
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              await CartService.instance.addProduct(product);
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    '${product.name} added to cart',
+                                    style: GoogleFonts.poppins(),
+                                  ),
+                                  duration: const Duration(milliseconds: 900),
+                                ),
+                              );
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primaryOrange,
+                              side: const BorderSide(
+                                color: AppColors.primaryOrange,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              textStyle: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                            child: const Text('Buy once'),
+                          ),
                         ),
-                        textStyle: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SizedBox(
+                          height: 54,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pushNamed(
+                              context,
+                              AppRoutes.subscriptionPlan,
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryOrange,
+                              foregroundColor: AppColors.whiteSurface,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              textStyle: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                            child: const Text('Subscribe'),
+                          ),
                         ),
                       ),
-                      child: const Text('Add to subscription'),
-                    ),
+                    ],
                   ),
                 ),
               ),
