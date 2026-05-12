@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/cart_dock.dart';
 import '../../data/cart_service.dart';
 import '../../models/product_model.dart';
 
@@ -37,6 +38,8 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: const CartDock(bottomPadding: 64),
       body: Stack(
         children: [
           CustomScrollView(
@@ -70,11 +73,13 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen> {
                             IconButton(
                               onPressed: () => Navigator.maybePop(context),
                               style: IconButton.styleFrom(
-                                backgroundColor:
-                                    AppColors.whiteSurface.withValues(alpha: 0.92),
+                                backgroundColor: AppColors.whiteSurface
+                                    .withValues(alpha: 0.92),
                               ),
-                              icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                                  size: 18),
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                size: 18,
+                              ),
                             ),
                             const Spacer(),
                             Center(
@@ -122,8 +127,10 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen> {
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          const Icon(Icons.star_rounded,
-                              color: AppColors.starYellow),
+                          const Icon(
+                            Icons.star_rounded,
+                            color: AppColors.starYellow,
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             '${p.ratingLabel} rating',
@@ -167,8 +174,7 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen> {
                               borderRadius: BorderRadius.circular(50),
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(50),
-                                onTap: () =>
-                                    setState(() => _weightLabel = w),
+                                onTap: () => setState(() => _weightLabel = w),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 18,
@@ -235,8 +241,10 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen> {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.agriculture_rounded,
-                                color: AppColors.primaryBrown),
+                            const Icon(
+                              Icons.agriculture_rounded,
+                              color: AppColors.primaryBrown,
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
@@ -268,28 +276,30 @@ class _SpiceDetailScreenState extends State<SpiceDetailScreen> {
               child: SafeArea(
                 top: false,
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   child: SizedBox(
                     height: 54,
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        CartService.instance.addProduct(
+                      onPressed: () async {
+                        await CartService.instance.addProduct(
                           p,
                           quantity: 1,
                           variantLabel: _weightLabel,
                         );
+                        if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
                               '${p.name} ($_weightLabel) added to cart',
                               style: GoogleFonts.poppins(),
                             ),
-                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(milliseconds: 900),
                           ),
                         );
-                        Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryBrown,
