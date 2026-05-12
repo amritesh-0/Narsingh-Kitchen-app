@@ -3,9 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
+import '../../core/widgets/cart_dock.dart';
 import '../../core/widgets/product_card.dart';
 import '../../data/cart_service.dart';
-import '../../data/dummy_data.dart';
 import '../../models/product_model.dart';
 import '../../core/services/product_service.dart';
 
@@ -42,11 +42,11 @@ class _SpicesScreenState extends State<SpicesScreen>
   List<ProductModel> _applyFilters(List<ProductModel> all) {
     final chip = _filters[_selected];
     var filtered = all;
-    
+
     if (chip != 'All') {
       filtered = filtered.where((p) => p.spiceCategory == chip).toList();
     }
-    
+
     if (_searchQuery.isNotEmpty) {
       filtered = filtered
           .where(
@@ -61,8 +61,12 @@ class _SpicesScreenState extends State<SpicesScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: const CartDock(),
       body: StreamBuilder<List<ProductModel>>(
-        stream: ProductService.instance.getProducts(ProductKind.spice),
+        stream: ProductService.instance.getProductsWithFallback(
+          ProductKind.spice,
+        ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -148,7 +152,8 @@ class _SpicesScreenState extends State<SpicesScreen>
                                   borderRadius: BorderRadius.circular(50),
                                   child: InkWell(
                                     borderRadius: BorderRadius.circular(50),
-                                    onTap: () => setState(() => _selected = index),
+                                    onTap: () =>
+                                        setState(() => _selected = index),
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 16,
@@ -182,6 +187,18 @@ class _SpicesScreenState extends State<SpicesScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        if (snapshot.hasError)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              'Spice inventory is unavailable from backend. Showing starter catalog.',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ),
                         AnimatedBuilder(
                           animation: _promoCtrl,
                           builder: (context, child) {
@@ -194,7 +211,9 @@ class _SpicesScreenState extends State<SpicesScreen>
                                 gradient: LinearGradient(
                                   colors: [
                                     AppColors.primaryBrown,
-                                    AppColors.primaryBrown.withValues(alpha: 0.88),
+                                    AppColors.primaryBrown.withValues(
+                                      alpha: 0.88,
+                                    ),
                                   ],
                                 ),
                                 borderRadius: BorderRadius.circular(22),
@@ -225,7 +244,8 @@ class _SpicesScreenState extends State<SpicesScreen>
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'Farm Fresh Collection',
@@ -318,18 +338,19 @@ class _SpicesScreenState extends State<SpicesScreen>
                                 AppRoutes.spiceDetail,
                                 arguments: p,
                               ),
-                              onAdd: () {
-                                CartService.instance.addProduct(
+                              onAdd: () async {
+                                await CartService.instance.addProduct(
                                   p,
                                   variantLabel: '500g',
                                 );
+                                if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
                                       '${p.name} added to cart',
                                       style: GoogleFonts.poppins(),
                                     ),
-                                    duration: const Duration(milliseconds: 1200),
+                                    duration: const Duration(milliseconds: 900),
                                   ),
                                 );
                               },
@@ -345,25 +366,6 @@ class _SpicesScreenState extends State<SpicesScreen>
             ),
           );
         },
-      ),
-      floatingActionButton: Material(
-        color: AppColors.primaryBrown,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        elevation: 6,
-        child: InkWell(
-          onTap: () => Navigator.pushNamed(context, AppRoutes.cart),
-          customBorder: const CircleBorder(),
-          child: const SizedBox(
-            width: 56,
-            height: 56,
-            child: Icon(
-              Icons.shopping_cart_rounded,
-              color: AppColors.whiteSurface,
-              size: 26,
-            ),
-          ),
-        ),
       ),
     );
   }

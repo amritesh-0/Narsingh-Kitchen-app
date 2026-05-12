@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
-import '../../core/constants/app_strings.dart';
+import '../../core/services/auth_service.dart';
 import '../../data/cart_service.dart';
 
 enum _PayMethod { cod, upi, card }
@@ -16,16 +16,45 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  final _addressCtrl = TextEditingController(
-    text: 'Plot 42, Sector 9, Near City Mall — ${AppStrings.userLocation}',
-  );
+  final _addressCtrl = TextEditingController(text: 'Add your delivery address');
 
   _PayMethod _pay = _PayMethod.upi;
+
+  @override
+  void initState() {
+    super.initState();
+    _hydrateDefaultAddress();
+  }
+
+  String get _paymentLabel {
+    switch (_pay) {
+      case _PayMethod.cod:
+        return 'Cash on Delivery';
+      case _PayMethod.upi:
+        return 'UPI';
+      case _PayMethod.card:
+        return 'Card';
+    }
+  }
 
   @override
   void dispose() {
     _addressCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _hydrateDefaultAddress() async {
+    final user = AuthService.instance.currentUser;
+    if (user == null) {
+      _addressCtrl.text = 'Sign in to load saved delivery addresses';
+      return;
+    }
+
+    final address = await AuthService.instance.getDefaultAddress(user.uid);
+    if (!mounted) return;
+    _addressCtrl.text = address?.fullAddress.isNotEmpty == true
+        ? address!.fullAddress
+        : 'Add a delivery address from profile';
   }
 
   @override
@@ -134,7 +163,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         children: [
                           _row('Subtotal', cart.formatInr(cart.subtotal)),
                           const SizedBox(height: 10),
-                          _row('Delivery', cart.formatInr(CartService.deliveryFee)),
+                          _row(
+                            'Delivery',
+                            cart.formatInr(CartService.deliveryFee),
+                          ),
                           const SizedBox(height: 10),
                           _row(
                             'Promo',
@@ -173,11 +205,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           showDialog(
                             context: context,
                             barrierDismissible: false,
-                            builder: (_) => const Center(child: CircularProgressIndicator()),
+                            builder: (_) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
                           );
-                          
+
                           try {
-                            final orderId = await cart.placeOrder(_addressCtrl.text);
+                            final orderId = await cart.placeOrder(
+                              _addressCtrl.text,
+                              paymentMethod: _paymentLabel,
+                            );
                             if (context.mounted) {
                               Navigator.pop(context); // close loader
                               Navigator.pushReplacementNamed(
@@ -190,7 +227,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             if (context.mounted) {
                               Navigator.pop(context); // close loader
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Failed to place order: $e')),
+                                SnackBar(
+                                  content: Text('Failed to place order: $e'),
+                                ),
                               );
                             }
                           }
@@ -198,8 +237,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryRed,
                     foregroundColor: AppColors.whiteSurface,
-                    disabledBackgroundColor:
-                        AppColors.dividerGray.withValues(alpha: 0.5),
+                    disabledBackgroundColor: AppColors.dividerGray.withValues(
+                      alpha: 0.5,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -232,32 +272,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           color: selected ? AppColors.primaryRed : AppColors.dividerGray,
           width: selected ? 1.6 : 1,
         ),
-        color: selected
-            ? AppColors.lightPinkBg
-            : AppColors.whiteSurface,
+        color: selected ? AppColors.lightPinkBg : AppColors.whiteSurface,
         boxShadow: selected ? AppColors.cardShadow : null,
       ),
       child: ListTile(
         leading: Icon(icon, color: AppColors.primaryRed),
         title: Text(
           title,
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14),
         ),
         trailing: Icon(
           selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-          color:
-              selected ? AppColors.primaryRed : AppColors.textSecondary,
+          color: selected ? AppColors.primaryRed : AppColors.textSecondary,
         ),
         onTap: () => setState(() => _pay = value),
       ),
     );
   }
 
-  Widget _row(String label, String value,
-      {Color? valueColor, bool strong = false}) {
+  Widget _row(
+    String label,
+    String value, {
+    Color? valueColor,
+    bool strong = false,
+  }) {
     return Row(
       children: [
         Expanded(

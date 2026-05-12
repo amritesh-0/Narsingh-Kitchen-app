@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
+import '../../core/widgets/cart_dock.dart';
 import '../../core/widgets/product_card.dart';
 import '../../core/services/product_service.dart';
 import '../../data/cart_service.dart';
@@ -46,8 +47,12 @@ class _FastFoodScreenState extends State<FastFoodScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: const CartDock(),
       body: StreamBuilder<List<ProductModel>>(
-        stream: ProductService.instance.getProducts(ProductKind.fastFood),
+        stream: ProductService.instance.getProductsWithFallback(
+          ProductKind.fastFood,
+        ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -148,49 +153,81 @@ class _FastFoodScreenState extends State<FastFoodScreen> {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
-                    child: visible.isEmpty
-                        ? Center(
-                            child: Text('No items found',
-                                style: GoogleFonts.poppins(color: AppColors.textSecondary)),
-                          )
-                        : GridView.builder(
-                            physics: const BouncingScrollPhysics(),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: 0.72,
+                    child: Column(
+                      children: [
+                        if (snapshot.hasError)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              'Fast food catalog is unavailable from backend. Showing starter items.',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
-                            itemCount: visible.length,
-                            itemBuilder: (context, index) {
-                              final p = visible[index];
-                              return ProductCard(
-                                name: p.name,
-                                price: '₹${p.price.toStringAsFixed(0)}',
-                                emoji: p.emoji,
-                                rating: p.rating.toString(),
-                                time: '20 min', // Default
-                                tag: p.tag.isNotEmpty ? p.tag : 'Popular',
-                                tagColor: AppColors.primaryOrange,
-                                accentColor: AppColors.primaryRed,
-                                onTap: () => Navigator.pushNamed(
-                                    context, AppRoutes.productDetail,
-                                    arguments: p),
-                                onAdd: () {
-                                  CartService.instance.addProduct(p);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        '${p.name} added to cart',
-                                        style: GoogleFonts.poppins(),
-                                      ),
-                                      duration: const Duration(milliseconds: 1200),
-                                    ),
-                                  );
-                                },
-                              );
-                            },
                           ),
+                        Expanded(
+                          child: visible.isEmpty
+                              ? Center(
+                                  child: Text(
+                                    'No items found',
+                                    style: GoogleFonts.poppins(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                )
+                              : GridView.builder(
+                                  physics: const BouncingScrollPhysics(),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        crossAxisSpacing: 16,
+                                        mainAxisSpacing: 16,
+                                        childAspectRatio: 0.72,
+                                      ),
+                                  itemCount: visible.length,
+                                  itemBuilder: (context, index) {
+                                    final p = visible[index];
+                                    return ProductCard(
+                                      name: p.name,
+                                      price: '₹${p.price.toStringAsFixed(0)}',
+                                      emoji: p.emoji,
+                                      rating: p.ratingLabel,
+                                      time: p.deliveryEta ?? 'Fresh batch',
+                                      tag: p.tag.isNotEmpty ? p.tag : 'Popular',
+                                      tagColor: AppColors.primaryOrange,
+                                      accentColor: AppColors.primaryRed,
+                                      onTap: () => Navigator.pushNamed(
+                                        context,
+                                        AppRoutes.productDetail,
+                                        arguments: p,
+                                      ),
+                                      onAdd: () async {
+                                        await CartService.instance.addProduct(
+                                          p,
+                                        );
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              '${p.name} added to cart',
+                                              style: GoogleFonts.poppins(),
+                                            ),
+                                            duration: const Duration(
+                                              milliseconds: 900,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
