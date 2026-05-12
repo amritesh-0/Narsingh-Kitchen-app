@@ -194,10 +194,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          widget.product.subtitle.isNotEmpty 
-                            ? widget.product.subtitle 
-                            : 'Authentic flavor crafted with the finest ingredients. '
-                              'Prepared fresh daily to ensure premium quality and taste.',
+                          widget.product.subtitle.isNotEmpty
+                              ? widget.product.subtitle
+                              : 'Authentic flavor crafted with the finest ingredients. '
+                                    'Prepared fresh daily to ensure premium quality and taste.',
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w400,
                             fontSize: 14,
@@ -312,10 +312,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           height: 52,
                           child: ElevatedButton(
                             onPressed: () async {
-                              final variant = widget.product.kind == ProductKind.spice 
-                                  ? _sizes[_sizeIndex] 
+                              final variant =
+                                  widget.product.kind == ProductKind.spice
+                                  ? _sizes[_sizeIndex]
                                   : null;
-                                  
+
                               await CartService.instance.addProduct(
                                 widget.product,
                                 quantity: _qty,
@@ -329,7 +330,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                       'Added to cart! Quantity: $_qty',
                                       style: GoogleFonts.poppins(),
                                     ),
-                                    duration: const Duration(milliseconds: 1200),
+                                    duration: const Duration(milliseconds: 900),
                                   ),
                                 );
                               }

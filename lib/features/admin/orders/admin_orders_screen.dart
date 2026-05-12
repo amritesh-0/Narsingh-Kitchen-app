@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
+import '../../../core/constants/order_ui.dart';
 import '../../../core/services/admin_service.dart';
 import '../../../models/order_model.dart';
 
@@ -26,7 +27,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          
+
           final allOrders = snapshot.data ?? [];
           final filteredOrders = _filter == null
               ? allOrders
@@ -39,14 +40,19 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               Expanded(
                 child: filteredOrders.isEmpty
                     ? Center(
-                        child: Text('No orders found',
-                            style: GoogleFonts.poppins(color: AppColors.textSecondary)),
+                        child: Text(
+                          'No orders found',
+                          style: GoogleFonts.poppins(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
                       )
                     : ListView.builder(
                         physics: const BouncingScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                         itemCount: filteredOrders.length,
-                        itemBuilder: (_, i) => _OrderTile(order: filteredOrders[i]),
+                        itemBuilder: (_, i) =>
+                            _OrderTile(order: filteredOrders[i]),
                       ),
               ),
             ],
@@ -77,7 +83,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           Text(
             'Orders',
             style: GoogleFonts.poppins(
-                fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.whiteSurface),
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: AppColors.whiteSurface,
+            ),
           ),
           const Spacer(),
           Container(
@@ -88,7 +97,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             ),
             child: Text(
               '$totalCount total',
-              style: GoogleFonts.poppins(color: AppColors.whiteSurface, fontSize: 12),
+              style: GoogleFonts.poppins(
+                color: AppColors.whiteSurface,
+                fontSize: 12,
+              ),
             ),
           ),
         ],
@@ -116,17 +128,24 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
-              label: Text(e.key,
-                  style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: selected ? AppColors.whiteSurface : AppColors.textPrimary)),
+              label: Text(
+                e.key,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: selected
+                      ? AppColors.whiteSurface
+                      : AppColors.textPrimary,
+                ),
+              ),
               selected: selected,
               onSelected: (_) => setState(() => _filter = e.value),
               selectedColor: AppColors.primaryRed,
               backgroundColor: AppColors.whiteSurface,
               checkmarkColor: AppColors.whiteSurface,
-              side: BorderSide(color: selected ? AppColors.primaryRed : AppColors.dividerGray),
+              side: BorderSide(
+                color: selected ? AppColors.primaryRed : AppColors.dividerGray,
+              ),
             ),
           );
         }).toList(),
@@ -142,7 +161,11 @@ class _OrderTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, AppRoutes.orderDetail, arguments: order.id),
+      onTap: () => Navigator.pushNamed(
+        context,
+        AppRoutes.orderDetail,
+        arguments: order.id,
+      ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
@@ -157,31 +180,62 @@ class _OrderTile extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Order #${order.id.substring(0, 5).toUpperCase()}',
-                    style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textPrimary)),
+                Text(
+                  order.shortCode,
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
                 _statusChip(order.status),
               ],
             ),
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.person_outline_rounded, size: 14, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.person_outline_rounded,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 4),
-                Text(order.userName,
-                    style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary)),
+                Text(
+                  order.userName,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              OrderUi.statusHeadline(order.status),
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
             ),
             const SizedBox(height: 4),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                    '${order.items.length} item${order.items.length > 1 ? 's' : ''}',
-                    style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary)),
-                Text('₹${order.totalAmount.toStringAsFixed(2)}',
-                    style: GoogleFonts.poppins(
-                        fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primaryRed)),
+                  '${order.items.length} item${order.items.length > 1 ? 's' : ''}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                Text(
+                  '₹${order.totalAmount.toStringAsFixed(2)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryRed,
+                  ),
+                ),
               ],
             ),
           ],
@@ -191,24 +245,23 @@ class _OrderTile extends StatelessWidget {
   }
 
   Widget _statusChip(OrderStatus status) {
-    Color bg; Color fg; String label;
-    switch (status) {
-      case OrderStatus.pending:
-        bg = const Color(0xFFFFF3E0); fg = AppColors.primaryOrange; label = 'Pending';
-      case OrderStatus.preparing:
-        bg = const Color(0xFFE3F2FD); fg = Colors.blue; label = 'Preparing';
-      case OrderStatus.outForDelivery:
-        bg = const Color(0xFFE8EAF6); fg = Colors.indigo; label = 'On Way';
-      case OrderStatus.delivered:
-        bg = const Color(0xFFE8F5E9); fg = AppColors.successGreen; label = 'Delivered';
-      case OrderStatus.cancelled:
-        bg = const Color(0xFFFFEBEE); fg = AppColors.primaryRed; label = 'Cancelled';
-    }
+    final fg = OrderUi.statusColor(status);
+    final bg = fg.withValues(alpha: 0.12);
+    final label = OrderUi.statusLabel(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Text(label,
-          style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.poppins(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: fg,
+        ),
+      ),
     );
   }
 }

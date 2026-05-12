@@ -91,18 +91,44 @@ class AdminDashboardScreen extends StatelessWidget {
     return StreamBuilder<Map<String, dynamic>>(
       stream: AdminService.instance.getDashboardStats(),
       builder: (context, snapshot) {
-        final statsData = snapshot.data ?? {
-          'totalOrders': 0,
-          'revenue': 0.0,
-          'pendingOrders': 0,
-          'deliveredOrders': 0,
-        };
+        final statsData =
+            snapshot.data ??
+            {
+              'totalOrders': 0,
+              'revenue': 0.0,
+              'pendingOrders': 0,
+              'deliveredOrders': 0,
+            };
 
         final stats = [
-          _StatData('Orders Today', statsData['totalOrders'].toString(), Icons.receipt_long_rounded, const Color(0xFFFFE0E0), AppColors.primaryRed),
-          _StatData('Revenue', '₹${(statsData['revenue'] as double).toStringAsFixed(0)}', Icons.currency_rupee_rounded, const Color(0xFFE8F5E9), AppColors.successGreen),
-          _StatData('Delivered', statsData['deliveredOrders'].toString(), Icons.check_circle_outline_rounded, const Color(0xFFE3F2FD), Colors.blue),
-          _StatData('Pending', statsData['pendingOrders'].toString(), Icons.hourglass_top_rounded, const Color(0xFFFFF8E1), AppColors.primaryOrange),
+          _StatData(
+            'Orders Today',
+            statsData['totalOrders'].toString(),
+            Icons.receipt_long_rounded,
+            const Color(0xFFFFE0E0),
+            AppColors.primaryRed,
+          ),
+          _StatData(
+            'Revenue',
+            '₹${(statsData['revenue'] as double).toStringAsFixed(0)}',
+            Icons.currency_rupee_rounded,
+            const Color(0xFFE8F5E9),
+            AppColors.successGreen,
+          ),
+          _StatData(
+            'Delivered',
+            statsData['deliveredOrders'].toString(),
+            Icons.check_circle_outline_rounded,
+            const Color(0xFFE3F2FD),
+            Colors.blue,
+          ),
+          _StatData(
+            'Pending',
+            statsData['pendingOrders'].toString(),
+            Icons.hourglass_top_rounded,
+            const Color(0xFFFFF8E1),
+            AppColors.primaryOrange,
+          ),
         ];
 
         return GridView.count(
@@ -120,10 +146,25 @@ class AdminDashboardScreen extends StatelessWidget {
 
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
-      _QuickAction('Add Fast Food', Icons.fastfood_rounded, AppRoutes.addFastFood, null),
-      _QuickAction('Add Tiffin', Icons.lunch_dining_rounded, AppRoutes.addTiffin, null),
+      _QuickAction(
+        'Add Fast Food',
+        Icons.fastfood_rounded,
+        AppRoutes.addFastFood,
+        null,
+      ),
+      _QuickAction(
+        'Add Tiffin',
+        Icons.lunch_dining_rounded,
+        AppRoutes.addTiffin,
+        null,
+      ),
       _QuickAction('Add Spice', Icons.grass_rounded, AppRoutes.addSpice, null),
-      _QuickAction('Add Promo', Icons.local_offer_rounded, AppRoutes.managePromos, null),
+      _QuickAction(
+        'Add Promo',
+        Icons.local_offer_rounded,
+        AppRoutes.managePromos,
+        null,
+      ),
     ];
 
     return Column(
@@ -131,7 +172,11 @@ class AdminDashboardScreen extends StatelessWidget {
       children: [
         Text(
           'Quick Actions',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.textPrimary),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            color: AppColors.textPrimary,
+          ),
         ),
         const SizedBox(height: 10),
         SingleChildScrollView(
@@ -139,22 +184,28 @@ class AdminDashboardScreen extends StatelessWidget {
           physics: const BouncingScrollPhysics(),
           child: Row(
             children: actions
-                .map((a) => Padding(
-                      padding: const EdgeInsets.only(right: 10),
-                      child: ActionChip(
-                        avatar: Icon(a.icon, size: 16, color: AppColors.primaryRed),
-                        label: Text(
-                          a.label,
-                          style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w500),
-                        ),
-                        backgroundColor: AppColors.lightPinkBg,
-                        side: const BorderSide(color: Color(0xFFFFCDD2)),
-                        onPressed: () => Navigator.pushNamed(
-                          context,
-                          a.route,
+                .map(
+                  (a) => Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: ActionChip(
+                      avatar: Icon(
+                        a.icon,
+                        size: 16,
+                        color: AppColors.primaryRed,
+                      ),
+                      label: Text(
+                        a.label,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ))
+                      backgroundColor: AppColors.lightPinkBg,
+                      side: const BorderSide(color: Color(0xFFFFCDD2)),
+                      onPressed: () => Navigator.pushNamed(context, a.route),
+                    ),
+                  ),
+                )
                 .toList(),
           ),
         ),
@@ -171,11 +222,22 @@ class AdminDashboardScreen extends StatelessWidget {
           children: [
             Text(
               'Recent Orders',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.textPrimary),
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: AppColors.textPrimary,
+              ),
             ),
             TextButton(
-              onPressed: () => Navigator.pushNamed(context, AppRoutes.adminOrders),
-              child: Text('View All', style: GoogleFonts.poppins(color: AppColors.primaryRed, fontSize: 13)),
+              onPressed: () =>
+                  Navigator.pushNamed(context, AppRoutes.adminOrders),
+              child: Text(
+                'View All',
+                style: GoogleFonts.poppins(
+                  color: AppColors.primaryRed,
+                  fontSize: 13,
+                ),
+              ),
             ),
           ],
         ),
@@ -183,7 +245,8 @@ class AdminDashboardScreen extends StatelessWidget {
         StreamBuilder<List<OrderModel>>(
           stream: AdminService.instance.getAllOrders(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData) {
+            if (!snapshot.hasData &&
+                snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
             final orders = snapshot.data!.take(5).toList();
@@ -191,12 +254,29 @@ class AdminDashboardScreen extends StatelessWidget {
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Text('No recent orders', style: GoogleFonts.poppins(color: AppColors.textSecondary)),
+                  child: Text(
+                    'No recent orders',
+                    style: GoogleFonts.poppins(color: AppColors.textSecondary),
+                  ),
                 ),
               );
             }
             return Column(
-              children: orders.map((o) => _OrderCard(order: o)).toList(),
+              children: [
+                if (snapshot.hasError)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Recent orders could not be fully loaded from backend.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ...orders.map((o) => _OrderCard(order: o)),
+              ],
             );
           },
         ),
@@ -234,7 +314,10 @@ class _StatCard extends StatelessWidget {
           Container(
             width: 36,
             height: 36,
-            decoration: BoxDecoration(color: data.bg, borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+              color: data.bg,
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: Icon(data.icon, color: data.iconColor, size: 20),
           ),
           Column(
@@ -242,11 +325,18 @@ class _StatCard extends StatelessWidget {
             children: [
               Text(
                 data.value,
-                style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
               ),
               Text(
                 data.label,
-                style: GoogleFonts.poppins(fontSize: 11, color: AppColors.textSecondary),
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -271,7 +361,11 @@ class _OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, AppRoutes.orderDetail, arguments: order.id),
+      onTap: () => Navigator.pushNamed(
+        context,
+        AppRoutes.orderDetail,
+        arguments: order.id,
+      ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
@@ -287,18 +381,28 @@ class _OrderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Order #${order.id.length > 5 ? order.id.substring(0, 5).toUpperCase() : order.id}',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textPrimary),
+                    order.shortCode,
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     order.userName,
-                    style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary),
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${order.items.length} item${order.items.length > 1 ? 's' : ''} · ₹${order.totalAmount.toStringAsFixed(0)}',
-                    style: GoogleFonts.poppins(fontSize: 12, color: AppColors.textSecondary),
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -322,20 +426,40 @@ class _StatusChip extends StatelessWidget {
     String label;
     switch (status) {
       case OrderStatus.pending:
-        bg = const Color(0xFFFFF3E0); fg = AppColors.primaryOrange; label = 'Pending';
+        bg = const Color(0xFFFFF3E0);
+        fg = AppColors.primaryOrange;
+        label = 'Pending';
       case OrderStatus.preparing:
-        bg = const Color(0xFFE3F2FD); fg = Colors.blue; label = 'Preparing';
+        bg = const Color(0xFFE3F2FD);
+        fg = Colors.blue;
+        label = 'Preparing';
       case OrderStatus.outForDelivery:
-        bg = const Color(0xFFE8EAF6); fg = Colors.indigo; label = 'On Way';
+        bg = const Color(0xFFE8EAF6);
+        fg = Colors.indigo;
+        label = 'On Way';
       case OrderStatus.delivered:
-        bg = const Color(0xFFE8F5E9); fg = AppColors.successGreen; label = 'Delivered';
+        bg = const Color(0xFFE8F5E9);
+        fg = AppColors.successGreen;
+        label = 'Delivered';
       case OrderStatus.cancelled:
-        bg = const Color(0xFFFFEBEE); fg = AppColors.primaryRed; label = 'Cancelled';
+        bg = const Color(0xFFFFEBEE);
+        fg = AppColors.primaryRed;
+        label = 'Cancelled';
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Text(label, style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.poppins(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: fg,
+        ),
+      ),
     );
   }
 }
