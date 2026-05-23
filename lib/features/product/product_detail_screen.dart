@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/services/saved_service.dart';
 import '../../core/widgets/quantity_stepper.dart';
 
 import '../../data/cart_service.dart';
@@ -76,22 +77,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   ),
                                 ),
                                 const Spacer(),
-                                Material(
-                                  color: AppColors.whiteSurface,
-                                  shape: const CircleBorder(),
-                                  clipBehavior: Clip.antiAlias,
-                                  child: InkWell(
-                                    onTap: () {},
-                                    customBorder: const CircleBorder(),
-                                    child: const SizedBox(
-                                      width: 44,
-                                      height: 44,
-                                      child: Icon(
-                                        Icons.favorite_border_rounded,
-                                        color: AppColors.primaryRed,
+                                ListenableBuilder(
+                                  listenable: SavedService.instance,
+                                  builder: (context, _) {
+                                    final isSaved = SavedService.instance
+                                        .isSaved(widget.product.id);
+                                    return Material(
+                                      color: AppColors.whiteSurface,
+                                      shape: const CircleBorder(),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: InkWell(
+                                        onTap: () => SavedService.instance
+                                            .toggle(widget.product.id),
+                                        customBorder: const CircleBorder(),
+                                        child: SizedBox(
+                                          width: 44,
+                                          height: 44,
+                                          child: Icon(
+                                            isSaved
+                                                ? Icons.favorite_rounded
+                                                : Icons.favorite_border_rounded,
+                                            color: AppColors.primaryRed,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
+                                    );
+                                  },
                                 ),
                               ],
                             ),

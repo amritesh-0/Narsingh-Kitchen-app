@@ -37,6 +37,8 @@ class ProductService {
     DummyData.todayTiffinMeal,
   ];
 
+  List<ProductModel> get _fallbackAllProducts => DummyData.allProducts;
+
   // ── Categories ──────────────────────────────────────────────────────────
   Stream<List<CategoryModel>> getCategories() {
     return _firestore.collection('categories').snapshots().map((snapshot) {
@@ -84,6 +86,21 @@ class ProductService {
     return getProducts(kind).map(
       (products) =>
           products.isEmpty ? _fallbackProductsForKind(kind) : products,
+    );
+  }
+
+  Stream<List<ProductModel>> getAllProducts() {
+    return _firestore.collection('products').snapshots().map((snapshot) {
+      final products = snapshot.docs
+          .map((doc) => ProductModel.fromFirestore(doc.data(), doc.id))
+          .toList();
+      return products.isEmpty ? _fallbackAllProducts : products;
+    });
+  }
+
+  Stream<List<ProductModel>> getAllProductsWithFallback() {
+    return getAllProducts().map(
+      (products) => products.isEmpty ? _fallbackAllProducts : products,
     );
   }
 
