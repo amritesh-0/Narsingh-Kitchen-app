@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
+import '../../core/services/saved_service.dart';
 import '../../core/widgets/cart_dock.dart';
 import '../../data/cart_service.dart';
 import '../../models/product_model.dart';
@@ -50,16 +51,42 @@ class TiffinDetailScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            IconButton(
-                              onPressed: () => Navigator.maybePop(context),
-                              style: IconButton.styleFrom(
-                                backgroundColor: AppColors.whiteSurface
-                                    .withValues(alpha: 0.9),
-                              ),
-                              icon: const Icon(
-                                Icons.arrow_back_ios_new_rounded,
-                                size: 18,
-                              ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  onPressed: () => Navigator.maybePop(context),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: AppColors.whiteSurface
+                                        .withValues(alpha: 0.9),
+                                  ),
+                                  icon: const Icon(
+                                    Icons.arrow_back_ios_new_rounded,
+                                    size: 18,
+                                  ),
+                                ),
+                                const Spacer(),
+                                ListenableBuilder(
+                                  listenable: SavedService.instance,
+                                  builder: (context, _) {
+                                    final isSaved = SavedService.instance
+                                        .isSaved(product.id);
+                                    return IconButton(
+                                      onPressed: () => SavedService.instance
+                                          .toggle(product.id),
+                                      style: IconButton.styleFrom(
+                                        backgroundColor: AppColors.whiteSurface
+                                            .withValues(alpha: 0.9),
+                                      ),
+                                      icon: Icon(
+                                        isSaved
+                                            ? Icons.favorite_rounded
+                                            : Icons.favorite_border_rounded,
+                                        color: AppColors.primaryRed,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
                             const Spacer(),
                             Center(
