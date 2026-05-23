@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../core/services/product_service.dart';
-import '../../core/services/auth_service.dart';
-import '../../models/product_model.dart';
-import '../../models/category_model.dart';
-import '../../models/address_model.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/constants/app_strings.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/product_service.dart';
+import '../../models/address_model.dart';
+import '../../models/category_model.dart';
+import '../../models/product_model.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _searchQuery = '';
 
   void _showLocationPicker(BuildContext context) {
     final user = AuthService.instance.currentUser;
@@ -104,9 +111,35 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  List<ProductModel> _filterProducts(List<ProductModel> products) {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return const <ProductModel>[];
+
+    return products.where((product) {
+      final searchable = [
+        product.name,
+        product.subtitle,
+        product.tag,
+        product.spiceCategory,
+        _kindLabel(product.kind),
+      ].join(' ').toLowerCase();
+      return searchable.contains(query);
+    }).toList();
+  }
+
+  void _openProduct(BuildContext context, ProductModel product) {
+    final route = switch (product.kind) {
+      ProductKind.fastFood => AppRoutes.productDetail,
+      ProductKind.tiffinMeal => AppRoutes.tiffinDetail,
+      ProductKind.spice => AppRoutes.spiceDetail,
+    };
+    Navigator.pushNamed(context, route, arguments: product);
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = AuthService.instance.currentUser;
+    final isSearching = _searchQuery.trim().isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -170,7 +203,10 @@ class HomeScreen extends StatelessWidget {
                                     Icons.notifications_none_rounded,
                                     color: Colors.white,
                                   ),
-                                  onPressed: () {},
+                                  onPressed: () => Navigator.pushNamed(
+                                    context,
+                                    AppRoutes.notificationPreferences,
+                                  ),
                                 ),
                                 CircleAvatar(
                                   radius: 16,
@@ -208,7 +244,6 @@ class HomeScreen extends StatelessWidget {
                       'Browse mode active. Sign in to sync addresses, orders, and subscriptions.',
                     ),
                   if (currentUser == null) const SizedBox(height: 16),
-                  // Search Bar
                   Container(
                     decoration: BoxDecoration(
                       color: AppColors.whiteSurface,
@@ -222,8 +257,11 @@ class HomeScreen extends StatelessWidget {
                       ],
                     ),
                     child: TextField(
+                      onChanged: (value) {
+                        setState(() => _searchQuery = value);
+                      },
                       decoration: InputDecoration(
-                        hintText: 'Search delicious meals...',
+                        hintText: 'Search products, meals, or spices...',
                         hintStyle: GoogleFonts.outfit(
                           color: AppColors.textSecondary,
                         ),
@@ -231,6 +269,18 @@ class HomeScreen extends StatelessWidget {
                           Icons.search_rounded,
                           color: AppColors.primaryRed,
                         ),
+                        suffixIcon: isSearching
+                            ? IconButton(
+                                onPressed: () {
+                                  setState(() => _searchQuery = '');
+                                  FocusScope.of(context).unfocus();
+                                },
+                                icon: const Icon(
+                                  Icons.close_rounded,
+                                  color: AppColors.textSecondary,
+                                ),
+                              )
+                            : null,
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(
                           vertical: 16,
@@ -239,215 +289,234 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 32),
-
-                  // Categories
-                  Text(
-                    'Explore Categories',
-                    style: GoogleFonts.outfit(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 20,
-                      color: AppColors.textPrimary,
+                  if (isSearching)
+                    _SearchResultsSection(
+                      query: _searchQuery,
+                      onOpenProduct: (product) =>
+                          _openProduct(context, product),
+                      filterProducts: _filterProducts,
+                      accentFor: _accentFor,
+                      kindLabel: _kindLabel,
+                      sectionNoteBuilder: _sectionNote,
+                    )
+                  else ...[
+                    Text(
+                      'Explore Categories',
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 20,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  StreamBuilder<List<CategoryModel>>(
-                    stream: ProductService.instance.getCategoriesWithFallback(),
-                    builder: (context, snapshot) {
-                      var categories = snapshot.data ?? [];
+                    const SizedBox(height: 16),
+                    StreamBuilder<List<CategoryModel>>(
+                      stream: ProductService.instance
+                          .getCategoriesWithFallback(),
+                      builder: (context, snapshot) {
+                        final categories = snapshot.data ?? [];
 
-                      if (categories.isEmpty &&
-                          snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
+                        if (categories.isEmpty &&
+                            snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (snapshot.hasError)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: _sectionNote(
-                                'Live categories are unavailable. Showing starter categories.',
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (snapshot.hasError)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _sectionNote(
+                                  'Live categories are unavailable. Showing starter categories.',
+                                ),
                               ),
-                            ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: categories.map((cat) {
-                              return _CategoryItem(
-                                title: cat.title,
-                                image: cat.image,
-                                color: cat.color,
-                                onTap: () {
-                                  if (cat.title == 'Fast Food') {
-                                    Navigator.pushNamed(
-                                      context,
-                                      AppRoutes.fastFood,
-                                    );
-                                  }
-                                  if (cat.title == 'Tiffin') {
-                                    Navigator.pushNamed(
-                                      context,
-                                      AppRoutes.tiffin,
-                                    );
-                                  }
-                                  if (cat.title == 'Spices') {
-                                    Navigator.pushNamed(
-                                      context,
-                                      AppRoutes.spices,
-                                    );
-                                  }
-                                },
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Popular Section
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Popular Right Now',
-                        style: GoogleFonts.outfit(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 20,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {},
-                        child: Text(
-                          'See All',
-                          style: GoogleFonts.outfit(
-                            color: AppColors.primaryRed,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  StreamBuilder<List<ProductModel>>(
-                    stream: ProductService.instance.getPopularProducts(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      final products = snapshot.data!;
-                      if (products.isEmpty) {
-                        return Center(
-                          child: Text(
-                            'No popular items found',
-                            style: GoogleFonts.outfit(
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        );
-                      }
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (snapshot.hasError)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: _sectionNote(
-                                'Popular items could not be loaded from backend. Showing starter picks.',
-                              ),
-                            ),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            physics: const BouncingScrollPhysics(),
-                            child: Row(
-                              children: products.map((prod) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 16),
-                                  child: PopularFoodCard(
-                                    title: prod.name,
-                                    category: prod.kind == ProductKind.fastFood
-                                        ? 'Fast Food'
-                                        : 'Tiffin',
-                                    emoji: prod.emoji,
-                                    price: '₹${prod.price.toInt()}',
-                                    rating: prod.ratingLabel,
-                                    accent: prod.kind == ProductKind.fastFood
-                                        ? AppColors.primaryRed
-                                        : AppColors.primaryOrange,
-                                    onTap: () => Navigator.pushNamed(
-                                      context,
-                                      prod.kind == ProductKind.fastFood
-                                          ? AppRoutes.productDetail
-                                          : AppRoutes.tiffinDetail,
-                                      arguments: prod,
-                                    ),
-                                  ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: categories.map((cat) {
+                                return _CategoryItem(
+                                  title: cat.title,
+                                  image: cat.image,
+                                  color: cat.color,
+                                  onTap: () {
+                                    if (cat.title == 'Fast Food') {
+                                      Navigator.pushNamed(
+                                        context,
+                                        AppRoutes.fastFood,
+                                      );
+                                    }
+                                    if (cat.title == 'Tiffin') {
+                                      Navigator.pushNamed(
+                                        context,
+                                        AppRoutes.tiffin,
+                                      );
+                                    }
+                                    if (cat.title == 'Spices') {
+                                      Navigator.pushNamed(
+                                        context,
+                                        AppRoutes.spices,
+                                      );
+                                    }
+                                  },
                                 );
                               }).toList(),
                             ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Promo Banner
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.primaryOrange, Color(0xFFFF9800)],
-                      ),
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primaryOrange.withValues(alpha: 0.3),
-                          blurRadius: 15,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
+                          ],
+                        );
+                      },
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '20% OFF',
+                          'Popular Right Now',
                           style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 32,
-                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 20,
+                            color: AppColors.textPrimary,
                           ),
                         ),
-                        Text(
-                          'On your first Tiffin subscription!',
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 16,
-                            color: Colors.white.withValues(alpha: 0.9),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: AppColors.primaryOrange,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.pushNamed(context, AppRoutes.fastFood),
+                          child: Text(
+                            'See All',
+                            style: GoogleFonts.outfit(
+                              color: AppColors.primaryRed,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                          child: const Text('Subscribe Now'),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    StreamBuilder<List<ProductModel>>(
+                      stream: ProductService.instance.getPopularProducts(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData &&
+                            snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        final products = snapshot.data ?? [];
+                        if (products.isEmpty) {
+                          return Center(
+                            child: Text(
+                              'No popular items found',
+                              style: GoogleFonts.outfit(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          );
+                        }
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (snapshot.hasError)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _sectionNote(
+                                  'Popular items could not be loaded from backend. Showing starter picks.',
+                                ),
+                              ),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              child: Row(
+                                children: products.map((prod) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 16),
+                                    child: PopularFoodCard(
+                                      title: prod.name,
+                                      category: _kindLabel(prod.kind),
+                                      emoji: prod.emoji,
+                                      price: '₹${prod.price.toInt()}',
+                                      rating: prod.ratingLabel,
+                                      accent: _accentFor(prod.kind),
+                                      onTap: () => _openProduct(context, prod),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 32),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(24),
+                        onTap: () =>
+                            Navigator.pushNamed(context, AppRoutes.tiffin),
+                        child: Ink(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                AppColors.primaryOrange,
+                                Color(0xFFFF9800),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primaryOrange.withValues(
+                                  alpha: 0.3,
+                                ),
+                                blurRadius: 15,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '20% OFF',
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 32,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                'On your first Tiffin subscription!',
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 16,
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.tiffin,
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: AppColors.primaryOrange,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text('Subscribe Now'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 40),
                 ],
               ),
@@ -484,6 +553,188 @@ class HomeScreen extends StatelessWidget {
         fontWeight: FontWeight.w600,
         color: AppColors.textSecondary,
       ),
+    );
+  }
+
+  Color _accentFor(ProductKind kind) {
+    return switch (kind) {
+      ProductKind.fastFood => AppColors.primaryRed,
+      ProductKind.tiffinMeal => AppColors.primaryOrange,
+      ProductKind.spice => AppColors.primaryBrown,
+    };
+  }
+
+  String _kindLabel(ProductKind kind) {
+    return switch (kind) {
+      ProductKind.fastFood => 'Fast Food',
+      ProductKind.tiffinMeal => 'Tiffin',
+      ProductKind.spice => 'Spice',
+    };
+  }
+}
+
+class _SearchResultsSection extends StatelessWidget {
+  const _SearchResultsSection({
+    required this.query,
+    required this.onOpenProduct,
+    required this.filterProducts,
+    required this.accentFor,
+    required this.kindLabel,
+    required this.sectionNoteBuilder,
+  });
+
+  final String query;
+  final void Function(ProductModel product) onOpenProduct;
+  final List<ProductModel> Function(List<ProductModel>) filterProducts;
+  final Color Function(ProductKind kind) accentFor;
+  final String Function(ProductKind kind) kindLabel;
+  final Widget Function(String text) sectionNoteBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<ProductModel>>(
+      stream: ProductService.instance.getAllProductsWithFallback(),
+      builder: (context, snapshot) {
+        final results = filterProducts(snapshot.data ?? []);
+
+        if (!snapshot.hasData &&
+            snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Search Results',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${results.length} found',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (snapshot.hasError)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: sectionNoteBuilder(
+                  'Live product search is unavailable. Showing starter catalog results.',
+                ),
+              ),
+            if (results.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.whiteSurface,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: AppColors.cardShadow,
+                ),
+                child: Text(
+                  'No products matched "$query".',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              )
+            else
+              ...results.map(
+                (product) => Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Material(
+                    color: AppColors.whiteSurface,
+                    borderRadius: BorderRadius.circular(20),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: () => onOpenProduct(product),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: accentFor(
+                                  product.kind,
+                                ).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                product.emoji,
+                                style: const TextStyle(fontSize: 30),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    product.name,
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    product.subtitle,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.outfit(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '₹${product.price.toStringAsFixed(0)}',
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w800,
+                                    color: accentFor(product.kind),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  kindLabel(product.kind),
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -734,7 +985,7 @@ class PopularFoodCard extends StatelessWidget {
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
-                          Icons.add,
+                          Icons.arrow_forward_rounded,
                           color: Colors.white,
                           size: 18,
                         ),
